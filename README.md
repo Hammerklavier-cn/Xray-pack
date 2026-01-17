@@ -6,10 +6,10 @@ This compilation script empowers you the ability to customise build options so t
 
 ## Usage
 
-Enable all features for x86_64 cpu:
+Enable all features for x86_64 cpu and linux system:
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner,regabiargs,regabiwrappers" ./Xray-pack.exe -p ../Xray-core/ -v --goos linux --goarch amd64
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner,regabiargs,regabiwrappers" ./Xray-pack.exe -s -v --goos linux --goarch amd64
 ```
 
 Detailed usage:
