@@ -1,71 +1,73 @@
-# Xray packager
+# Xray-pack
 
-Build and package Xray (core of Project X) on your machine.
+[中文](README_zh.md)
 
-This compilation script empowers you the ability to customise build options so that you can fully release the performance of not only Xray-core but also your machine by specifying go compiler flags (`-gcflags`), linker flags (`-ldflags`), cpu architecture (`GOAMD64`, `GO386`, `GOARM`, `GOMIPS`, `GOMIPS64`, `GOPPC64` and `GORISCV64` environment variables), `CGO_ENABLED` (set to 0 to disable CGO, which might improve performance), and `GOEXPERIMENT` (`jsonv2`, `newinliner`, `greenteagc`, `regabiargs`, `regabiwrappers` might improve performance).
+A Rust-based tool to build and package [Xray-core](https://github.com/XTLS/Xray-core) (the core of Project X) with maximum flexibility and performance tuning.
+
+## Features
+
+- **Customizable Build**: Fine-tune Go compiler flags (`-gcflags`, `-ldflags`), CPU architecture (`GOAMD64`, `GO386`, `GOARM`, `GOMIPS`, `GOMIPS64`, `GOPPC64`, `GORISCV64`), and Go experimental features (`GOEXPERIMENT`).
+- **Geo Data Download**: Automatically downloads the latest `geoip.dat` and `geosite.dat` for specified regions (China Mainland, Russia, Iran).
+- **Wintun Support**: Downloads and packages Wintun driver for Windows builds.
+- **Flexible Source**: Build from a local source path or clone from the official repository.
+- **One-step Packaging**: Outputs a ready-to-use zip package for deployment.
+
+## Requirements
+
+- [Rust](https://www.rust-lang.org/tools/install)
+- [Go](https://go.dev/doc/install) (must be in your `PATH`)
+
+## Installation
+
+```bash
+cargo build --release
+```
+
+The executable will be in `target/release/Xray-pack.exe`.
 
 ## Usage
 
-Enable all features for x86_64 cpu and linux system:
+Enable all features for x86_64 CPU and Linux system:
 
 ```bash
 CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner,regabiargs,regabiwrappers" ./Xray-pack.exe -s -v --goos linux --goarch amd64
 ```
 
-Detailed usage:
+### Command Line Options
 
 ```text
 Usage: Xray-pack.exe [OPTIONS]
 
 Options:
-  -s, --from-source
-          Build Xray-core from source code. The repository will be downloaded to the current directory (C:\msys64\home\q5vsx\project\Xray-pack).
-
-  -p, --source-path <SOURCE_PATH>
-          Path to the source code directory.
-
-          [default: C:\msys64\home\q5vsx\project\Xray-pack]
-
-      --xray-version <XRAY_VERSION>
-          Specify Xray-core version (tag or branch)
-
-          [default: main]
-
-  -o, --output-path <OUTPUT_PATH>
-          Output destination directory.
-
-          [default: dist]
-
-      --goos <GOOS>
-          Specify GOOS for the Go compiler. Default to `linux`
-
-          [default: linux]
-
-      --goarch <GOARCH>
-          Specify GOARCH for the Go compiler. Default to `amd64`
-
-          [default: amd64]
-
-      --gcflags <GCFLAGS>
-          gcflags for Go compiler
-
-          [default: all:-l=4]
-
-      --ldflags <LDFLAGS>
-          ldflags for Go compiler. Default is `-X github.com/xtls/xray-core/core.build=${COMMID} -s -w -buildid=`, with `COMMID` being the commit hash of the source code.
-
-      --region <REGION>
-          Specify region for geo files
-
-          [default: china-mainland]
-          [possible values: china-mainland, russia, iran]
-
-  -v, --verbose
-          Enable verbose output
-
-  -h, --help
-          Print help (see a summary with '-h')
-
-  -V, --version
-          Print version
+  -s, --from-source           Build Xray-core from source code (clone to current directory)
+  -p, --source-path <PATH>    Path to Xray-core source code [default: current directory]
+      --xray-version <VER>    Xray-core version/tag/branch [default: main]
+  -o, --output-path <PATH>    Output directory [default: dist]
+      --goos <GOOS>           Target OS for Go compiler [default: linux]
+      --goarch <GOARCH>       Target architecture for Go compiler [default: amd64]
+      --gcflags <FLAGS>       Go compiler gcflags [default: all:-l=4]
+      --ldflags <FLAGS>       Go compiler ldflags [default: -X github.com/xtls/xray-core/core.build=${COMMID} -s -w -buildid=]
+      --region <REGION>       Region for geo files [default: china-mainland] [possible: china-mainland, russia, iran]
+  -v, --verbose               Enable verbose output
+  -h, --help                  Print help
+  -V, --version               Print version
 ```
+
+### Output
+
+The packaged zip will be named:
+
+```
+Xray-{version}-{arch}-{system}.zip
+```
+
+and will include:
+
+- Compiled Xray binary (`xray` or `xray.exe`)
+- `geoip.dat` and `geosite.dat`
+- `README.md` and `LICENSE`
+- (Windows only) `wintun.dll` and `LICENSE-wintun.txt`
+
+## License
+
+This project is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
