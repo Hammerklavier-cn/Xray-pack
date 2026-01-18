@@ -27,10 +27,10 @@ The executable will be in `target/release/Xray-pack.exe`.
 
 ## Usage
 
-Enable all features for x86_64 CPU and Linux system:
+Enable all features for x86_64 CPU and Linux system (Only use GOAMD=v4 if CPU supports AVX512 instructions):
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner,regabiargs,regabiwrappers" ./Xray-pack.exe -s -v --goos linux --goarch amd64
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./Xray-pack.exe -s -v --goos linux --goarch amd64
 ```
 
 ### Command Line Options

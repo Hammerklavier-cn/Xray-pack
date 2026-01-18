@@ -27,10 +27,10 @@ cargo build --release
 
 ## 使用方法
 
-为 x86_64 CPU 和 Linux 系统启用所有性能特性：
+为 x86_64 CPU 和 Linux 系统启用所有性能特性（若 CPU 支持 AVX512 指令集）：
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner,regabiargs,regabiwrappers" ./xray-pack.exe -s -v --goos linux --goarch amd64
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./xray-pack.exe -s -v --goos linux --goarch amd64
 ```
 
 ### 命令行参数
