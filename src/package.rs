@@ -10,7 +10,7 @@ fn copy_to_dir() {
 
     let name = format!(
         "xray-{}-{}-{}",
-        args.xray_version, args.build_options.goarch, args.build_options.goos
+        args.xray_version, args.compile_options.goarch, args.compile_options.goos
     );
     let dir = TEMP_DIR.join(name);
     std::fs::create_dir(&dir).unwrap();
@@ -20,7 +20,7 @@ fn copy_to_dir() {
     );
 
     let mut files = Vec::new();
-    files.push(repo_dir.join(if args.build_options.goos == "windows" {
+    files.push(repo_dir.join(if args.compile_options.goos == "windows" {
         "xray.exe"
     } else {
         "xray"
@@ -29,7 +29,7 @@ fn copy_to_dir() {
     files.push(repo_dir.join("LICENSE"));
     files.push(TEMP_DIR.join("geoip.dat"));
     files.push(TEMP_DIR.join("geosite.dat"));
-    if args.build_options.goos == "windows" {
+    if args.compile_options.goos == "windows" {
         files.push(TEMP_DIR.join("wintun.dll"));
         files.push(TEMP_DIR.join("LICENSE-wintun.txt"));
     }
@@ -47,7 +47,7 @@ fn compress_zip() -> PackResult<PathBuf> {
     let repo_dir = REPOSITORY_DIR.get().unwrap();
     let name = format!(
         "xray-{}-{}-{}.zip",
-        args.xray_version, args.build_options.goarch, args.build_options.goos
+        args.xray_version, args.compile_options.goarch, args.compile_options.goos
     );
 
     let zip_path = TEMP_DIR.join(name);
@@ -61,7 +61,7 @@ fn compress_zip() -> PackResult<PathBuf> {
     );
 
     let mut files = Vec::new();
-    files.push(TEMP_DIR.join(if args.build_options.goos == "windows" {
+    files.push(TEMP_DIR.join(if args.compile_options.goos == "windows" {
         "xray.exe"
     } else {
         "xray"
@@ -70,7 +70,7 @@ fn compress_zip() -> PackResult<PathBuf> {
     files.push(repo_dir.join("LICENSE"));
     files.push(TEMP_DIR.join("geoip.dat"));
     files.push(TEMP_DIR.join("geosite.dat"));
-    if args.build_options.goos == "windows" {
+    if args.compile_options.goos == "windows" {
         files.push(TEMP_DIR.join("wintun.dll"));
         files.push(TEMP_DIR.join("LICENSE-wintun.txt"));
     }
@@ -94,8 +94,11 @@ pub fn package_all() -> PackResult<()> {
 
     // copy to target directory
     let args = ARGS.get().unwrap();
-    std::fs::create_dir_all(&args.output_path).unwrap();
-    let release_path = args.output_path.join(zip_path.file_name().unwrap());
+    std::fs::create_dir_all(&args.path_options.output_path).unwrap();
+    let release_path = args
+        .path_options
+        .output_path
+        .join(zip_path.file_name().unwrap());
     std::fs::copy(&zip_path, &release_path).unwrap_or_else(|_| {
         panic!(
             "Failed to copy {} to {}",

@@ -76,9 +76,9 @@ fn main() -> PackResult<()> {
 
     download_geodat(args.download_options.region)?;
 
-    if args.build_options.goos == "windows" {
+    if args.compile_options.goos == "windows" {
         download_wintun()?;
-        extract_wintun(&args.build_options.goarch)?;
+        extract_wintun(&args.compile_options.goarch)?;
     }
 
     package_all()?;
