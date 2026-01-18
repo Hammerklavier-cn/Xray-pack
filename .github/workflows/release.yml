@@ -184,7 +184,6 @@ jobs:
       - name: Compress binary
         shell: bash
         run: |
-          cd ${{ github.workspace }}
           if [[ "${{ matrix.os_name }}" == "windows" ]]; then
             7z a -tzip "${{ env.ARTIFACT_NAME }}.zip" "${{ env.ARTIFACT_NAME }}"
           else
