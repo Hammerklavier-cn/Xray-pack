@@ -41,8 +41,8 @@ Usage: Xray-pack.exe [OPTIONS]
 Options:
   -s, --from-source           Build Xray-core from source code (clone to current directory)
   -p, --source-path <PATH>    Path to Xray-core source code [default: current directory]
-      --xray-version <VER>    Xray-core version/tag/branch [default: main]
   -o, --output-path <PATH>    Output directory [default: dist]
+      --xray-version <VER>    Xray-core version/tag/branch [default: main]
       --goos <GOOS>           Target OS for Go compiler [default: linux]
       --goarch <GOARCH>       Target architecture for Go compiler [default: amd64]
       --gcflags <FLAGS>       Go compiler gcflags [default: all:-l=4]

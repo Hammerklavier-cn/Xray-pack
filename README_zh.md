@@ -41,8 +41,8 @@ CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner,regabiargs
 选项:
   -s, --from-source           从源码构建 xray-core（克隆到当前目录）
   -p, --source-path <路径>    xray-core 源码路径 [默认: 当前目录]
-      --xray-version <版本>   xray-core 版本/标签/分支 [默认: main]
   -o, --output-path <路径>    输出目录 [默认: dist]
+      --xray-version <版本>   xray-core 版本/标签/分支 [默认: main]
       --goos <GOOS>           Go 编译目标操作系统 [默认: linux]
       --goarch <GOARCH>       Go 编译目标架构 [默认: amd64]
       --gcflags <参数>        Go 编译 gcflags [默认: all:-l=4]
