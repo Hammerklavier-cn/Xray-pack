@@ -123,7 +123,16 @@ jobs:
 
           curl -L -o strawberry-perl.zip https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54201_64bit/strawberry-perl-5.42.0.1-64bit-portable.zip
           7z x strawberry-perl.zip -o"C:/strawberry" -y
+
+          # Add Strawberry Perl to PATH for current and subsequent steps
           echo "C:/strawberry/perl/bin" >> $GITHUB_PATH
+          export PATH="C:/strawberry/perl/bin:$PATH"
+
+          # Verify the correct Perl is being used
+          echo "Perl location:"
+          which perl
+          echo "Perl version:"
+          perl --version | head -n 2
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.5
