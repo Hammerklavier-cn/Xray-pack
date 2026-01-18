@@ -161,15 +161,15 @@ jobs:
         run: |
           # Determine binary extension and name
           if [[ "${{ matrix.os_name }}" == "windows" ]]; then
-            BINARY="Xray-pack.exe"
+            BINARY="xray-pack.exe"
             EXE_EXT=".exe"
           else
-            BINARY="Xray-pack"
+            BINARY="xray-pack"
             EXE_EXT=""
           fi
 
           # Unified artifact name: always include libc suffix
-          ARTIFACT_NAME="Xray-pack-${{ matrix.os_name }}-${{ matrix.arch_name }}-${{ matrix.libc }}${EXE_EXT}"
+          ARTIFACT_NAME="xray-pack-${{ matrix.os_name }}-${{ matrix.arch_name }}-${{ matrix.libc }}${EXE_EXT}"
 
           # Copy binary to artifact name
           cp target/${{ matrix.target }}/release/${BINARY} ${ARTIFACT_NAME}
@@ -226,7 +226,7 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
           body: |
-            ## 🎉 Xray-pack ${{ github.ref_name }}
+            ## 🎉 xray-pack ${{ github.ref_name }}
 
             ### 📦 下载 / Downloads
 
@@ -235,17 +235,17 @@ jobs:
 
             | OS | Architecture | LibC | Download |
             |---|---|---|---|
-            | Linux | x86_64 | glibc | Xray-pack-linux-amd64-gnu |
-            | Linux | x86_64 | musl | Xray-pack-linux-amd64-musl |
-            | Linux | arm64 | glibc | Xray-pack-linux-arm64-gnu |
-            | Linux | arm64 | musl | Xray-pack-linux-arm64-musl |
-            | Linux | armv7 | glibc | Xray-pack-linux-arm-gnu |
-            | Linux | armv7 | musl | Xray-pack-linux-arm-musl |
-            | Linux | riscv64 | glibc | Xray-pack-linux-riscv64-gnu |
-            | Linux | riscv64 | musl | Xray-pack-linux-riscv64-musl |
-            | macOS (Apple Silicon) | arm64 | Darwin | Xray-pack-darwin-arm64-darwin |
-            | Windows | x86_64 | MSVC | Xray-pack-windows-amd64-msvc.exe |
-            | Windows | x86_64 | GNU | Xray-pack-windows-amd64-gnu.exe |
+            | Linux | x86_64 | glibc | xray-pack-linux-amd64-gnu |
+            | Linux | x86_64 | musl | xray-pack-linux-amd64-musl |
+            | Linux | arm64 | glibc | xray-pack-linux-arm64-gnu |
+            | Linux | arm64 | musl | xray-pack-linux-arm64-musl |
+            | Linux | armv7 | glibc | xray-pack-linux-arm-gnu |
+            | Linux | armv7 | musl | xray-pack-linux-arm-musl |
+            | Linux | riscv64 | glibc | xray-pack-linux-riscv64-gnu |
+            | Linux | riscv64 | musl | xray-pack-linux-riscv64-musl |
+            | macOS (Apple Silicon) | arm64 | Darwin | xray-pack-darwin-arm64-darwin |
+            | Windows | x86_64 | MSVC | xray-pack-windows-amd64-msvc.exe |
+            | Windows | x86_64 | GNU | xray-pack-windows-amd64-gnu.exe |
 
             **注意**:
             - musl 版本是静态链接的二进制文件，可在任何 Linux 发行版上直接运行，无需额外依赖。

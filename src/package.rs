@@ -9,7 +9,7 @@ fn copy_to_dir() {
     let repo_dir = REPOSITORY_DIR.get().unwrap();
 
     let name = format!(
-        "Xray-{}-{}-{}",
+        "xray-{}-{}-{}",
         args.xray_version, args.build_options.goarch, args.build_options.goos
     );
     let dir = TEMP_DIR.join(name);
@@ -46,7 +46,7 @@ fn compress_zip() -> PackResult<PathBuf> {
     let args = ARGS.get().unwrap();
     let repo_dir = REPOSITORY_DIR.get().unwrap();
     let name = format!(
-        "Xray-{}-{}-{}.zip",
+        "xray-{}-{}-{}.zip",
         args.xray_version, args.build_options.goarch, args.build_options.goos
     );
 

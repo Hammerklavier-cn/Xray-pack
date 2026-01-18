@@ -1,5 +1,5 @@
 [package]
-name = "Xray-pack"
+name = "xray-pack"
 version = "0.1.1-alpha.4"
 edition = "2024"
 description = "Script to build and package Xray-core."
