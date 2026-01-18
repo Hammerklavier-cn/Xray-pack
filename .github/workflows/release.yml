@@ -13,7 +13,7 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.os }}-${{ matrix.rust_arch }}
+    name: Build ${{ matrix.os }}-${{ matrix.rust_arch }}-${{ matrix.libc }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -25,42 +25,56 @@ jobs:
             rust_arch: x86_64
             os_name: linux
             arch_name: amd64
+            libc: gnu
             use_cross: false
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             rust_arch: x86_64
             os_name: linux
-            arch_name: amd64-musl
+            arch_name: amd64
+            libc: musl
             use_cross: true
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             rust_arch: aarch64
             os_name: linux
             arch_name: arm64
+            libc: gnu
             use_cross: true
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
             rust_arch: aarch64
             os_name: linux
-            arch_name: arm64-musl
+            arch_name: arm64
+            libc: musl
             use_cross: true
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
             rust_arch: armv7
             os_name: linux
             arch_name: arm
+            libc: gnu
             use_cross: true
           - os: ubuntu-latest
             target: armv7-unknown-linux-musleabihf
             rust_arch: armv7
             os_name: linux
-            arch_name: arm-musl
+            arch_name: arm
+            libc: musl
             use_cross: true
           - os: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
             rust_arch: riscv64gc
             os_name: linux
             arch_name: riscv64
+            libc: gnu
+            use_cross: true
+          - os: ubuntu-latest
+            target: riscv64gc-unknown-linux-musl
+            rust_arch: riscv64gc
+            os_name: linux
+            arch_name: riscv64
+            libc: musl
             use_cross: true
 
           # macOS
@@ -69,6 +83,7 @@ jobs:
             rust_arch: aarch64
             os_name: darwin
             arch_name: arm64
+            libc: darwin
             use_cross: false
 
           # Windows
@@ -77,7 +92,15 @@ jobs:
             rust_arch: x86_64
             os_name: windows
             arch_name: amd64
+            libc: msvc
             use_cross: false
+          - os: ubuntu-latest
+            target: x86_64-pc-windows-gnu
+            rust_arch: x86_64
+            os_name: windows
+            arch_name: amd64
+            libc: gnu
+            use_cross: true
 
     steps:
       - name: Checkout repository
@@ -121,8 +144,8 @@ jobs:
             EXE_EXT=""
           fi
 
-          # Determine artifact name
-          ARTIFACT_NAME="Xray-pack-${{ matrix.os_name }}-${{ matrix.arch_name }}${EXE_EXT}"
+          # Unified artifact name: always include libc suffix
+          ARTIFACT_NAME="Xray-pack-${{ matrix.os_name }}-${{ matrix.arch_name }}-${{ matrix.libc }}${EXE_EXT}"
 
           # Copy binary to artifact name
           cp target/${{ matrix.target }}/release/${BINARY} ${ARTIFACT_NAME}
@@ -187,20 +210,27 @@ jobs:
             请根据你的系统选择对应的二进制文件：
             Please select the binary file corresponding to your system:
 
-            | OS | Architecture | Download |
-            |---|---|---|
-            | Linux | x86_64 (glibc) | Xray-pack-linux-amd64 |
-            | Linux | x86_64 (musl) | Xray-pack-linux-amd64-musl |
-            | Linux | arm64 (glibc) | Xray-pack-linux-arm64 |
-            | Linux | arm64 (musl) | Xray-pack-linux-arm64-musl |
-            | Linux | armv7 (glibc) | Xray-pack-linux-arm |
-            | Linux | armv7 (musl) | Xray-pack-linux-arm-musl |
-            | Linux | riscv64 | Xray-pack-linux-riscv64 |
-            | macOS (Apple Silicon) | arm64 | Xray-pack-darwin-arm64 |
-            | Windows | x86_64 | Xray-pack-windows-amd64.exe |
+            | OS | Architecture | LibC | Download |
+            |---|---|---|---|
+            | Linux | x86_64 | glibc | Xray-pack-linux-amd64-gnu |
+            | Linux | x86_64 | musl | Xray-pack-linux-amd64-musl |
+            | Linux | arm64 | glibc | Xray-pack-linux-arm64-gnu |
+            | Linux | arm64 | musl | Xray-pack-linux-arm64-musl |
+            | Linux | armv7 | glibc | Xray-pack-linux-arm-gnu |
+            | Linux | armv7 | musl | Xray-pack-linux-arm-musl |
+            | Linux | riscv64 | glibc | Xray-pack-linux-riscv64-gnu |
+            | Linux | riscv64 | musl | Xray-pack-linux-riscv64-musl |
+            | macOS (Apple Silicon) | arm64 | Darwin | Xray-pack-darwin-arm64-darwin |
+            | Windows | x86_64 | MSVC | Xray-pack-windows-amd64-msvc.exe |
+            | Windows | x86_64 | GNU (UCRT) | Xray-pack-windows-amd64-gnu.exe |
 
-            **注意**: musl 版本是静态链接的二进制文件，可在任何 Linux 发行版上直接运行，无需额外依赖。
-            **Note**: musl versions are statically linked binaries that can run on any Linux distribution without additional dependencies.
+            **注意**:
+            - musl 版本是静态链接的二进制文件，可在任何 Linux 发行版上直接运行，无需额外依赖。
+            - Windows GNU 版本使用 UCRT64 工具链构建，与 MSVC 版本相比可能具有不同的行为。
+
+            **Note**:
+            - musl versions are statically linked binaries that can run on any Linux distribution without additional dependencies.
+            - Windows GNU version is built using UCRT64 toolchain and may have different behavior compared to MSVC version.
 
             ### 📝 使用说明 / Usage
 
