@@ -64,12 +64,6 @@ jobs:
             use_cross: true
 
           # macOS
-          - os: macos-13
-            target: x86_64-apple-darwin
-            rust_arch: x86_64
-            os_name: darwin
-            arch_name: amd64
-            use_cross: false
           - os: macos-latest
             target: aarch64-apple-darwin
             rust_arch: aarch64
@@ -202,7 +196,6 @@ jobs:
             | Linux | armv7 (glibc) | Xray-pack-linux-arm |
             | Linux | armv7 (musl) | Xray-pack-linux-arm-musl |
             | Linux | riscv64 | Xray-pack-linux-riscv64 |
-            | macOS (Intel) | x86_64 | Xray-pack-darwin-amd64 |
             | macOS (Apple Silicon) | arm64 | Xray-pack-darwin-arm64 |
             | Windows | x86_64 | Xray-pack-windows-amd64.exe |
 
