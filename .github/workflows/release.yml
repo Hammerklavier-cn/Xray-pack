@@ -69,13 +69,6 @@ jobs:
             arch_name: riscv64
             libc: gnu
             use_cross: true
-          - os: ubuntu-latest
-            target: riscv64gc-unknown-linux-musl
-            rust_arch: riscv64gc
-            os_name: linux
-            arch_name: riscv64
-            libc: musl
-            use_cross: true
 
           # macOS
           - os: macos-latest
@@ -116,6 +109,17 @@ jobs:
         if: matrix.use_cross
         uses: taiki-e/install-action@cross
 
+      - name: Install Strawberry Perl (Windows only)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          # Download and install Strawberry Perl for Windows
+          # This is required for building openssl-sys with vendored feature on Windows
+          echo "Installing Strawberry Perl for Windows..."
+          curl -L -o strawberry-perl.zip https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54201_64bit/strawberry-perl-5.42.0.1-64bit-portable.zip
+          7z x strawberry-perl-5.42.0.1-64bit-portable.zip -o "C:\strawberry"
+          echo "C:\strawberry\perl\bin" >> $GITHUB_PATH
+
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.5
         with:
@@ -125,6 +129,12 @@ jobs:
         env:
           RUSTC_WRAPPER: sccache
         run: |
+          # On Windows, verify Perl is available for openssl-sys vendored build
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            echo "Checking Perl installation..."
+            perl --version || echo "Perl not found in PATH"
+          fi
+
           if [ "${{ matrix.use_cross }}" = "true" ]; then
             cross build --release --target ${{ matrix.target }}
           else
