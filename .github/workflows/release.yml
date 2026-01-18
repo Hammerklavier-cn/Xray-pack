@@ -1,0 +1,207 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            goos: linux
+            goarch: amd64
+            use_cross: false
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            goos: linux
+            goarch: arm64
+            use_cross: true
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            goos: linux
+            goarch: arm
+            goarm: 7
+            use_cross: true
+          - os: ubuntu-latest
+            target: riscv64gc-unknown-linux-gnu
+            goos: linux
+            goarch: riscv64
+            use_cross: true
+
+          # macOS
+          - os: macos-13
+            target: x86_64-apple-darwin
+            goos: darwin
+            goarch: amd64
+            use_cross: false
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            goos: darwin
+            goarch: arm64
+            use_cross: false
+
+          # Windows
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            goos: windows
+            goarch: amd64
+            use_cross: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          cache: false
+
+      - name: Install cross
+        if: matrix.use_cross
+        uses: taiki-e/install-action@cross
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.5
+        with:
+          version: "v0.8.1"
+
+      - name: Build binary
+        env:
+          RUSTC_WRAPPER: sccache
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+        run: |
+          if [ "${{ matrix.use_cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+        shell: bash
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          # Determine binary extension and name
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            BINARY="Xray-pack.exe"
+            EXE_EXT=".exe"
+          else
+            BINARY="Xray-pack"
+            EXE_EXT=""
+          fi
+
+          # Determine artifact name
+          ARTIFACT_NAME="Xray-pack-${{ matrix.goos }}-${{ matrix.goarch }}${EXE_EXT}"
+
+          # Copy binary to artifact name
+          cp target/${{ matrix.target }}/release/${BINARY} ${ARTIFACT_NAME}
+
+          # Make it executable on Unix-like systems
+          if [[ "${{ matrix.goos }}" != "windows" ]]; then
+            chmod +x ${ARTIFACT_NAME}
+          fi
+
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
+
+      - name: Compress binary
+        shell: bash
+        run: |
+          cd ${{ github.workspace }}
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            7z a -tzip "${{ env.ARTIFACT_NAME }}.zip" "${{ env.ARTIFACT_NAME }}"
+          else
+            tar -czf "${{ env.ARTIFACT_NAME }}.tar.gz" "${{ env.ARTIFACT_NAME }}"
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACT_NAME }}.*
+
+      - name: Show sccache stats
+        run: sccache --show-stats
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          body: |
+            ## 🎉 Xray-pack ${{ github.ref_name }}
+
+            ### 📦 下载 / Downloads
+
+            请根据你的系统选择对应的二进制文件：
+            Please select the binary file corresponding to your system:
+
+            | OS | Architecture | Download |
+            |---|---|---|
+            | Linux | x86_64 | Xray-pack-linux-amd64 |
+            | Linux | arm64 | Xray-pack-linux-arm64 |
+            | Linux | armv7 | Xray-pack-linux-arm |
+            | Linux | riscv64 | Xray-pack-linux-riscv64 |
+            | macOS (Intel) | x86_64 | Xray-pack-darwin-amd64 |
+            | macOS (Apple Silicon) | arm64 | Xray-pack-darwin-arm64 |
+            | Windows | x86_64 | Xray-pack-windows-amd64.exe |
+
+            ### 📝 使用说明 / Usage
+
+            请参考 [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) 了解详细使用方法。
+            Please refer to [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) for detailed usage instructions.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    name: Notify Release
+    needs: release
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Release Notification
+        run: |
+          echo "Release ${{ github.ref_name }} has been successfully created!"
+          echo "Check it out at: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}"

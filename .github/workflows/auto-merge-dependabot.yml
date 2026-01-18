@@ -1,0 +1,74 @@
+name: Auto-merge Dependabot PRs
+
+on:
+  pull_request:
+    types:
+      - labeled
+      - unlabeled
+      - synchronize
+      - opened
+      - edited
+      - ready_for_review
+      - reopened
+      - unlocked
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - name: Check for label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+            const isAutoMerge = labels.includes('auto-merge');
+            const isPatchUpdate = context.payload.pull_request.title.includes('to ') &&
+                                  context.payload.pull_request.title.match(/to \d+\.\d+\.\d+/);
+            const isMinorUpdate = context.payload.pull_request.title.includes('from ') &&
+                                  context.payload.pull_request.title.match(/from \d+\.\d+\.\d+ to \d+\.\d+\.\d+/);
+
+            // 自动合并条件：
+            // 1. 有 "auto-merge" 标签，或者
+            // 2. 是补丁版本更新，或者
+            // 3. 是次要版本更新（主版本更新需要手动审核）
+            const shouldAutoMerge = isAutoMerge || isPatchUpdate || (isMinorUpdate && !context.payload.pull_request.title.includes('.0.'));
+
+            if (!shouldAutoMerge) {
+              console.log('PR does not meet auto-merge criteria');
+              return;
+            }
+
+      - name: Wait for CI to pass
+        uses: lewagon/wait-on-check-action@v1.3.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: "Test on ubuntu-latest"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+
+      - name: Auto-merge PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+            const isAutoMerge = labels.includes('auto-merge');
+            const isPatchUpdate = context.payload.pull_request.title.includes('to ') &&
+                                  context.payload.pull_request.title.match(/to \d+\.\d+\.\d+/);
+            const isMinorUpdate = context.payload.pull_request.title.includes('from ') &&
+                                  context.payload.pull_request.title.match(/from \d+\.\d+\.\d+ to \d+\.\d+\.\d+/);
+
+            const shouldAutoMerge = isAutoMerge || isPatchUpdate || (isMinorUpdate && !context.payload.pull_request.title.includes('.0.'));
+
+            if (shouldAutoMerge) {
+              github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                merge_method: 'squash'
+              });
+            }
