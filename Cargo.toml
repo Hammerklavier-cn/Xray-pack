@@ -1,6 +1,6 @@
 [package]
-name = "Xray-pack"
-version = "0.1.0"
+name = "xray-pack"
+version = "0.1.1-alpha.4"
 edition = "2024"
 description = "Script to build and package Xray-core."
 
@@ -17,11 +17,19 @@ codegen-units = 1
 clap = { version = "4.5.54", features = ["derive"] }
 env_logger = "0.11.8"
 futures = "0.3.31"
-git2 = { version = "0.20.2", features = ["vendored-libgit2", "vendored-openssl"] }
+git2 = { version = "0.20.3", features = ["vendored-libgit2"] }
 log = "0.4.29"
-openssl-sys = { version = "0.9.111", features = ["vendored"] }
+openssl-sys = "0.9.111"
 reqwest = { version = "0.13.1", features = ["stream"] }
 thiserror = "2.0.17"
 tokio = { version = "1.49.0", features = ["bytes", "fs", "full"] }
 which = "8.0.0"
 zip = "7.1.0"
+
+[target.'cfg(not(target_os = "darwin"))'.dependencies]
+git2 = { version = "0.20.3", features = ["vendored-libgit2", "vendored-openssl"] }
+openssl-sys = { version = "0.9.111", features = ["vendored"] }
+
+[target.'cfg(target_os = "darwin")'.dependencies]
+git2 = { version = "0.20.3", features = ["vendored-libgit2"] }
+openssl-sys = "0.9.111"

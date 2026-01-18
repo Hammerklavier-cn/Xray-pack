@@ -3,23 +3,6 @@
 version = 4
 
 [[package]]
-name = "Xray-pack"
-version = "0.1.0"
-dependencies = [
- "clap",
- "env_logger",
- "futures",
- "git2",
- "log",
- "openssl-sys",
- "reqwest",
- "thiserror 2.0.17",
- "tokio",
- "which",
- "zip",
-]
-
-[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2464,6 +2447,23 @@ name = "writeable"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
+
+[[package]]
+name = "xray-pack"
+version = "0.1.1-alpha.4"
+dependencies = [
+ "clap",
+ "env_logger",
+ "futures",
+ "git2",
+ "log",
+ "openssl-sys",
+ "reqwest",
+ "thiserror 2.0.17",
+ "tokio",
+ "which",
+ "zip",
+]
 
 [[package]]
 name = "yoke"
