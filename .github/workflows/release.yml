@@ -232,15 +232,15 @@ jobs:
             | Linux | riscv64 | musl | Xray-pack-linux-riscv64-musl |
             | macOS (Apple Silicon) | arm64 | Darwin | Xray-pack-darwin-arm64-darwin |
             | Windows | x86_64 | MSVC | Xray-pack-windows-amd64-msvc.exe |
-            | Windows | x86_64 | GNU (UCRT) | Xray-pack-windows-amd64-gnu.exe |
+            | Windows | x86_64 | GNU | Xray-pack-windows-amd64-gnu.exe |
 
             **注意**:
             - musl 版本是静态链接的二进制文件，可在任何 Linux 发行版上直接运行，无需额外依赖。
-            - Windows GNU 版本使用 UCRT64 工具链构建，与 MSVC 版本相比可能具有不同的行为。
+            - Windows GNU 版本使用 mingw 工具链构建，与 MSVC 版本相比可能具有不同的行为。
 
             **Note**:
             - musl versions are statically linked binaries that can run on any Linux distribution without additional dependencies.
-            - Windows GNU version is built using UCRT64 toolchain and may have different behavior compared to MSVC version.
+            - Windows GNU version is built using mingw toolchain and may have different behavior compared to MSVC version.
 
             ### 📝 使用说明 / Usage
 
