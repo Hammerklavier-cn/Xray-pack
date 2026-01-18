@@ -80,13 +80,13 @@ jobs:
             use_cross: false
 
           # Windows
-          # - os: windows-latest
-          #   target: x86_64-pc-windows-msvc
-          #   rust_arch: x86_64
-          #   os_name: windows
-          #   arch_name: amd64
-          #   libc: msvc
-          #   use_cross: false
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            rust_arch: x86_64
+            os_name: windows
+            arch_name: amd64
+            libc: msvc
+            use_cross: false
           - os: ubuntu-latest
             target: x86_64-pc-windows-gnu
             rust_arch: x86_64
@@ -125,14 +125,13 @@ jobs:
           7z x strawberry-perl.zip -o"C:/strawberry" -y
 
           # Add Strawberry Perl to PATH for current and subsequent steps
-          echo "C:/strawberry/perl/bin" >> $GITHUB_PATH
-          export PATH="C:/strawberry/perl/bin:$PATH"
+          # echo "C:/strawberry/perl/bin" >> $GITHUB_PATH
+          # export PATH="C:/strawberry/perl/bin:$PATH"
+          export PERL="C:/strawberry/perl/bin/perl.exe"
 
           # Verify the correct Perl is being used
-          echo "Perl location:"
-          which perl
           echo "Perl version:"
-          perl --version | head -n 2
+          $PERL --version | head -n 2
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.5
@@ -146,7 +145,8 @@ jobs:
           # On Windows, verify Perl is available for openssl-sys vendored build
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             echo "Checking Perl installation..."
-            perl --version || echo "Perl not found in PATH"
+            export PERL="C:/strawberry/perl/bin/perl.exe"
+            $PERL --version || echo "Perl not found in PATH"
           fi
 
           if [ "${{ matrix.use_cross }}" = "true" ]; then
@@ -245,6 +245,7 @@ jobs:
             | Linux | riscv64 | glibc | Xray-pack-linux-riscv64-gnu |
             | Linux | riscv64 | musl | Xray-pack-linux-riscv64-musl |
             | macOS (Apple Silicon) | arm64 | Darwin | Xray-pack-darwin-arm64-darwin |
+            | Windows | x86_64 | MSVC | Xray-pack-windows-amd64-msvc.exe |
             | Windows | x86_64 | GNU | Xray-pack-windows-amd64-gnu.exe |
 
             **注意**:
