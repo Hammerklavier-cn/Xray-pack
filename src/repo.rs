@@ -39,7 +39,7 @@ pub fn setup_repository() -> PackResult<String> {
 
     // Get result of (git describe --always --dirty)
     let describe_result = repo
-        .describe(&git2::DescribeOptions::new().describe_tags())
+        .describe(git2::DescribeOptions::new().describe_tags())
         .and_then(|describe| describe.format(None))
         .unwrap_or_else(|_| object.id().to_string());
 

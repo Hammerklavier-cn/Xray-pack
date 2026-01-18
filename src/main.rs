@@ -22,16 +22,20 @@ static TEMP_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
             "Removing existing temporary directory at {}",
             temp_dir.display()
         );
-        std::fs::remove_dir_all(&temp_dir).expect(&format!(
-            "Failed to remove existing temporary directory at {}",
-            temp_dir.display()
-        ));
+        std::fs::remove_dir_all(&temp_dir).unwrap_or_else(|_| {
+            panic!(
+                "Failed to remove existing temporary directory at {}",
+                temp_dir.display()
+            )
+        });
     }
     log::debug!("Creating temporary directory at {}", temp_dir.display());
-    std::fs::create_dir(&temp_dir).expect(&format!(
-        "Failed to create temporary directory at {}",
-        temp_dir.display()
-    ));
+    std::fs::create_dir(&temp_dir).unwrap_or_else(|_| {
+        panic!(
+            "Failed to create temporary directory at {}",
+            temp_dir.display()
+        )
+    });
     temp_dir
 });
 
@@ -52,7 +56,7 @@ fn check_prerequisites() -> PackResult<()> {
 }
 
 fn main() -> PackResult<()> {
-    let args = ARGS.get_or_init(|| cli::Args::parse());
+    let args = ARGS.get_or_init(cli::Args::parse);
 
     match (std::env::var("RUST_LOG"), args.verbose) {
         (Err(_), true) => unsafe { std::env::set_var("RUST_LOG", "debug") },

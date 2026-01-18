@@ -77,8 +77,8 @@ fn compress_zip() -> PackResult<PathBuf> {
 
     for ref file in files {
         log::debug!("Compressing {}", file.display());
-        let mut file_reader =
-            std::fs::File::open(file).expect(&format!("Failed to open {}", file.display()));
+        let mut file_reader = std::fs::File::open(file)
+            .unwrap_or_else(|_| panic!("Failed to open {}", file.display()));
 
         let dest = file.file_name().unwrap().to_str().unwrap();
         zip_writer.start_file(dest, options)?;
@@ -96,11 +96,13 @@ pub fn package_all() -> PackResult<()> {
     let args = ARGS.get().unwrap();
     std::fs::create_dir_all(&args.output_path).unwrap();
     let release_path = args.output_path.join(zip_path.file_name().unwrap());
-    std::fs::copy(&zip_path, &release_path).expect(&format!(
-        "Failed to copy {} to {}",
-        zip_path.display(),
-        release_path.display()
-    ));
+    std::fs::copy(&zip_path, &release_path).unwrap_or_else(|_| {
+        panic!(
+            "Failed to copy {} to {}",
+            zip_path.display(),
+            release_path.display()
+        )
+    });
 
     log::info!("Copied the package to {}", release_path.display());
     Ok(())

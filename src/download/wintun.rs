@@ -18,7 +18,7 @@ pub fn extract_wintun(platform: impl AsRef<str>) -> PackResult<()> {
     // create reader
     let reader = std::fs::File::open(&zip_path)?;
     let mut zip = zip::ZipArchive::new(reader)?;
-    let mut zip_file = zip.by_path(&format!("wintun/bin/{}/wintun.dll", platform.as_ref()))?;
+    let mut zip_file = zip.by_path(format!("wintun/bin/{}/wintun.dll", platform.as_ref()))?;
 
     // create writer
     let mut writer = std::fs::File::create(extract_path)?;

@@ -6,7 +6,7 @@ pub fn download_geodat(region: Region) -> PackResult<()> {
     // TODO: check downloaded file by sha256.
     download_file(format!("{}geoip.dat", url), TEMP_DIR.join("geoip.dat"))?;
     log::info!("Downloaded geoip.dat");
-    download_file(format!("{}geosite.dat", url), &TEMP_DIR.join("geosite.dat"))?;
+    download_file(format!("{}geosite.dat", url), TEMP_DIR.join("geosite.dat"))?;
     log::info!("Downloaded geosite.dat");
     Ok(())
 }

@@ -33,7 +33,7 @@ pub fn build_xray(commid: &str) -> PackResult<()> {
             "-gcflags",
             &args.build_options.gcflags,
             "-ldflags",
-            &args.build_options.ldflags.as_deref().unwrap_or_else(|| {
+            args.build_options.ldflags.as_deref().unwrap_or_else(|| {
                 ldflags =
                     format!("-X github.com/xtls/xray-core/core.build={commid} -s -w -buildid=");
                 &ldflags
