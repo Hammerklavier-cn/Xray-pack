@@ -13,7 +13,7 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    name: Build ${{ matrix.os }}-${{ matrix.rust_arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -22,43 +22,67 @@ jobs:
           # Linux
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            goos: linux
-            goarch: amd64
+            rust_arch: x86_64
+            os_name: linux
+            arch_name: amd64
             use_cross: false
           - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            rust_arch: x86_64
+            os_name: linux
+            arch_name: amd64-musl
+            use_cross: true
+          - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            goos: linux
-            goarch: arm64
+            rust_arch: aarch64
+            os_name: linux
+            arch_name: arm64
+            use_cross: true
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            rust_arch: aarch64
+            os_name: linux
+            arch_name: arm64-musl
             use_cross: true
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
-            goos: linux
-            goarch: arm
-            goarm: 7
+            rust_arch: armv7
+            os_name: linux
+            arch_name: arm
+            use_cross: true
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-musleabihf
+            rust_arch: armv7
+            os_name: linux
+            arch_name: arm-musl
             use_cross: true
           - os: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
-            goos: linux
-            goarch: riscv64
+            rust_arch: riscv64gc
+            os_name: linux
+            arch_name: riscv64
             use_cross: true
 
           # macOS
           - os: macos-13
             target: x86_64-apple-darwin
-            goos: darwin
-            goarch: amd64
+            rust_arch: x86_64
+            os_name: darwin
+            arch_name: amd64
             use_cross: false
           - os: macos-latest
             target: aarch64-apple-darwin
-            goos: darwin
-            goarch: arm64
+            rust_arch: aarch64
+            os_name: darwin
+            arch_name: arm64
             use_cross: false
 
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            goos: windows
-            goarch: amd64
+            rust_arch: x86_64
+            os_name: windows
+            arch_name: amd64
             use_cross: false
 
     steps:
@@ -70,12 +94,6 @@ jobs:
         with:
           toolchain: stable
           target: ${{ matrix.target }}
-
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "stable"
-          cache: false
 
       - name: Install cross
         if: matrix.use_cross
@@ -89,9 +107,6 @@ jobs:
       - name: Build binary
         env:
           RUSTC_WRAPPER: sccache
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          GOARM: ${{ matrix.goarm }}
         run: |
           if [ "${{ matrix.use_cross }}" = "true" ]; then
             cross build --release --target ${{ matrix.target }}
@@ -104,7 +119,7 @@ jobs:
         shell: bash
         run: |
           # Determine binary extension and name
-          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+          if [[ "${{ matrix.os_name }}" == "windows" ]]; then
             BINARY="Xray-pack.exe"
             EXE_EXT=".exe"
           else
@@ -113,13 +128,13 @@ jobs:
           fi
 
           # Determine artifact name
-          ARTIFACT_NAME="Xray-pack-${{ matrix.goos }}-${{ matrix.goarch }}${EXE_EXT}"
+          ARTIFACT_NAME="Xray-pack-${{ matrix.os_name }}-${{ matrix.arch_name }}${EXE_EXT}"
 
           # Copy binary to artifact name
           cp target/${{ matrix.target }}/release/${BINARY} ${ARTIFACT_NAME}
 
           # Make it executable on Unix-like systems
-          if [[ "${{ matrix.goos }}" != "windows" ]]; then
+          if [[ "${{ matrix.os_name }}" != "windows" ]]; then
             chmod +x ${ARTIFACT_NAME}
           fi
 
@@ -129,7 +144,7 @@ jobs:
         shell: bash
         run: |
           cd ${{ github.workspace }}
-          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+          if [[ "${{ matrix.os_name }}" == "windows" ]]; then
             7z a -tzip "${{ env.ARTIFACT_NAME }}.zip" "${{ env.ARTIFACT_NAME }}"
           else
             tar -czf "${{ env.ARTIFACT_NAME }}.tar.gz" "${{ env.ARTIFACT_NAME }}"
@@ -180,13 +195,19 @@ jobs:
 
             | OS | Architecture | Download |
             |---|---|---|
-            | Linux | x86_64 | Xray-pack-linux-amd64 |
-            | Linux | arm64 | Xray-pack-linux-arm64 |
-            | Linux | armv7 | Xray-pack-linux-arm |
+            | Linux | x86_64 (glibc) | Xray-pack-linux-amd64 |
+            | Linux | x86_64 (musl) | Xray-pack-linux-amd64-musl |
+            | Linux | arm64 (glibc) | Xray-pack-linux-arm64 |
+            | Linux | arm64 (musl) | Xray-pack-linux-arm64-musl |
+            | Linux | armv7 (glibc) | Xray-pack-linux-arm |
+            | Linux | armv7 (musl) | Xray-pack-linux-arm-musl |
             | Linux | riscv64 | Xray-pack-linux-riscv64 |
             | macOS (Intel) | x86_64 | Xray-pack-darwin-amd64 |
             | macOS (Apple Silicon) | arm64 | Xray-pack-darwin-arm64 |
             | Windows | x86_64 | Xray-pack-windows-amd64.exe |
+
+            **注意**: musl 版本是静态链接的二进制文件，可在任何 Linux 发行版上直接运行，无需额外依赖。
+            **Note**: musl versions are statically linked binaries that can run on any Linux distribution without additional dependencies.
 
             ### 📝 使用说明 / Usage
 
