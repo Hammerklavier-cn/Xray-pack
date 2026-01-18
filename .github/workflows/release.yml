@@ -80,13 +80,13 @@ jobs:
             use_cross: false
 
           # Windows
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            rust_arch: x86_64
-            os_name: windows
-            arch_name: amd64
-            libc: msvc
-            use_cross: false
+          # - os: windows-latest
+          #   target: x86_64-pc-windows-msvc
+          #   rust_arch: x86_64
+          #   os_name: windows
+          #   arch_name: amd64
+          #   libc: msvc
+          #   use_cross: false
           - os: ubuntu-latest
             target: x86_64-pc-windows-gnu
             rust_arch: x86_64
@@ -245,7 +245,6 @@ jobs:
             | Linux | riscv64 | glibc | Xray-pack-linux-riscv64-gnu |
             | Linux | riscv64 | musl | Xray-pack-linux-riscv64-musl |
             | macOS (Apple Silicon) | arm64 | Darwin | Xray-pack-darwin-arm64-darwin |
-            | Windows | x86_64 | MSVC | Xray-pack-windows-amd64-msvc.exe |
             | Windows | x86_64 | GNU | Xray-pack-windows-amd64-gnu.exe |
 
             **注意**:
