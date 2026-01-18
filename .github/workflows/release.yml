@@ -117,7 +117,7 @@ jobs:
           # This is required for building openssl-sys with vendored feature on Windows
           echo "Installing Strawberry Perl for Windows..."
           curl -L -o strawberry-perl.zip https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54201_64bit/strawberry-perl-5.42.0.1-64bit-portable.zip
-          7z x strawberry-perl-5.42.0.1-64bit-portable.zip -o "C:\strawberry"
+          7z x strawberry-perl-5.42.0.1-64bit-portable.zip -o"C:/strawberry"
           echo "C:\strawberry\perl\bin" >> $GITHUB_PATH
 
       - name: Setup sccache
