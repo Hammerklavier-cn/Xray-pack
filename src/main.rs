@@ -22,12 +22,9 @@ static TEMP_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
             "Removing existing temporary directory at {}",
             temp_dir.display()
         );
-        std::fs::remove_dir_all(&temp_dir).unwrap_or_else(|_| {
-            panic!(
-                "Failed to remove existing temporary directory at {}",
-                temp_dir.display()
-            )
-        });
+        std::fs::remove_dir_all(&temp_dir)
+            .map_err(|_| PackError::DeleteFailed(temp_dir.clone()))
+            .unwrap();
     }
     log::debug!("Creating temporary directory at {}", temp_dir.display());
     std::fs::create_dir(&temp_dir).unwrap_or_else(|_| {
