@@ -9,7 +9,7 @@ pub fn build_xray(commid: &str) -> PackResult<()> {
     log::debug!("Building Xray-core");
     let args = ARGS.get().unwrap();
 
-    let output_name: &'static str = if args.build_options.goos == "windows" {
+    let output_name: &'static str = if args.compile_options.goos == "windows" {
         "xray.exe"
     } else {
         "xray"
@@ -22,8 +22,8 @@ pub fn build_xray(commid: &str) -> PackResult<()> {
 
     let mut cmd = Command::new("go");
     let mut ldflags = String::new();
-    cmd.env("GOOS", &args.build_options.goos)
-        .env("GOARCH", &args.build_options.goarch)
+    cmd.env("GOOS", &args.compile_options.goos)
+        .env("GOARCH", &args.compile_options.goarch)
         .args([
             "build",
             "-o",
@@ -31,9 +31,9 @@ pub fn build_xray(commid: &str) -> PackResult<()> {
             "-trimpath",
             "-buildvcs=false",
             "-gcflags",
-            &args.build_options.gcflags,
+            &args.compile_options.gcflags,
             "-ldflags",
-            args.build_options.ldflags.as_deref().unwrap_or_else(|| {
+            args.compile_options.ldflags.as_deref().unwrap_or_else(|| {
                 ldflags =
                     format!("-X github.com/xtls/xray-core/core.build={commid} -s -w -buildid=");
                 &ldflags

@@ -24,6 +24,28 @@ There are several options to maximize the performance of Xray-core:
 "
 )]
 pub struct Args {
+    #[command(flatten)]
+    pub path_options: PathOptions,
+
+    #[arg(
+        long,
+        help = "Specify Xray-core version (tag or branch)",
+        default_value = "main"
+    )]
+    pub xray_version: String,
+
+    #[command(flatten)]
+    pub compile_options: CompileOptions,
+
+    #[command(flatten)]
+    pub download_options: DownloadOptions,
+
+    #[arg(short, long, default_value_t = false, help = "Enable verbose output")]
+    pub verbose: bool,
+}
+
+#[derive(Debug, Parser)]
+pub struct PathOptions {
     #[arg(
         short = 's',
         long,
@@ -46,32 +68,16 @@ pub struct Args {
     pub source_path: PathBuf,
 
     #[arg(
-        long,
-        help = "Specify Xray-core version (tag or branch)",
-        default_value = "main"
-    )]
-    pub xray_version: String,
-
-    #[arg(
         short = 'o',
         long,
         help = "Output destination directory.",
         default_value = "dist"
     )]
     pub output_path: PathBuf,
-
-    #[command(flatten)]
-    pub build_options: BuildOptions,
-
-    #[command(flatten)]
-    pub download_options: DownloadOptions,
-
-    #[arg(short, long, default_value_t = false, help = "Enable verbose output")]
-    pub verbose: bool,
 }
 
 #[derive(Debug, Parser)]
-pub struct BuildOptions {
+pub struct CompileOptions {
     #[arg(
         long,
         help = "Specify GOOS for the Go compiler. Default to `linux`",

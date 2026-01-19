@@ -10,11 +10,13 @@
 - **自动下载 Geo 数据**：根据区域自动下载最新的 `geoip.dat` 和 `geosite.dat`（支持中国大陆、俄罗斯、伊朗）。
 - **Wintun 支持**：Windows 构建自动下载并打包 Wintun 驱动。
 - **灵活源码来源**：可从本地源码或官方仓库克隆编译。
+- **最小依赖**：仅需 Go 编译器。
+- **跨平台支持**：支持构建多个平台（Linux、Windows、macOS）和不同架构。
 - **一键打包**：输出可直接部署的 zip 包。
 
 ## 依赖
 
-- [Rust](https://www.rust-lang.org/tools/install)
+- [Rust](https://www.rust-lang.org/tools/install)（如果你想要从源码编译）
 - [Go](https://go.dev/doc/install)（需在 `PATH` 中）
 
 ## 安装
@@ -27,10 +29,10 @@ cargo build --release
 
 ## 使用方法
 
-为 x86_64 CPU 和 Linux 系统启用所有性能特性：
+为 x86_64 CPU 和 Linux 系统启用所有性能特性（若 CPU 支持 AVX512 指令集）：
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner,regabiargs,regabiwrappers" ./xray-pack.exe -s -v --goos linux --goarch amd64
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./xray-pack.exe -s -v --goos linux --goarch amd64
 ```
 
 ### 命令行参数
@@ -41,8 +43,8 @@ CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner,regabiargs
 选项:
   -s, --from-source           从源码构建 xray-core（克隆到当前目录）
   -p, --source-path <路径>    xray-core 源码路径 [默认: 当前目录]
-      --xray-version <版本>   xray-core 版本/标签/分支 [默认: main]
   -o, --output-path <路径>    输出目录 [默认: dist]
+      --xray-version <版本>   xray-core 版本/标签/分支 [默认: main]
       --goos <GOOS>           Go 编译目标操作系统 [默认: linux]
       --goarch <GOARCH>       Go 编译目标架构 [默认: amd64]
       --gcflags <参数>        Go 编译 gcflags [默认: all:-l=4]
