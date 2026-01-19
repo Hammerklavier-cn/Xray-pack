@@ -10,6 +10,9 @@ pub enum PackError {
     #[error("Failed to build Xray-core: {0}")]
     BuildFailed(String),
 
+    #[error("Checksum failed. Expected {expected}, got {got}")]
+    ChecksumFailed { expected: String, got: String },
+
     #[error("Failed to copy from {0} to {1}")]
     CopyFailed(PathBuf, PathBuf),
 
