@@ -17,7 +17,7 @@ pub fn download_geodat(region: Region) -> PackResult<()> {
     log::info!("Downloaded geoip.dat");
 
     // Get expected checksum for geoip.dat
-    let geoip_checksum = download_file_content(&format!("{url}geoip.dat.sha256sum"))?
+    let geoip_checksum = download_file_content(format!("{url}geoip.dat.sha256sum"))?
         .trim()
         .to_string();
 
@@ -34,7 +34,7 @@ pub fn download_geodat(region: Region) -> PackResult<()> {
     log::info!("Downloaded geosite.dat");
 
     // Get expected checksum for geosite.dat
-    let geosite_checksum = download_file_content(&format!("{url}geosite.dat.sha256sum"))?
+    let geosite_checksum = download_file_content(format!("{url}geosite.dat.sha256sum"))?
         .trim()
         .to_string();
 
