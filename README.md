@@ -10,11 +10,13 @@ A Rust-based tool to build and package [Xray-core](https://github.com/XTLS/Xray-
 - **Geo Data Download**: Automatically downloads the latest `geoip.dat` and `geosite.dat` for specified regions (China Mainland, Russia, Iran).
 - **Wintun Support**: Downloads and packages Wintun driver for Windows builds.
 - **Flexible Source**: Build from a local source path or clone from the official repository.
+- **Minimum Dependencies**: No additional dependencies required apart from Go compiler.
+- **Cross Platform**: Supports building for multiple platforms (Linux, Windows, macOS) and different architectures.
 - **One-step Packaging**: Outputs a ready-to-use zip package for deployment.
 
 ## Requirements
 
-- [Rust](https://www.rust-lang.org/tools/install)
+- [Rust](https://www.rust-lang.org/tools/install), if you want to build from source.
 - [Go](https://go.dev/doc/install) (must be in your `PATH`)
 
 ## Installation

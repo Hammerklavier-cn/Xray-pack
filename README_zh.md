@@ -10,11 +10,13 @@
 - **自动下载 Geo 数据**：根据区域自动下载最新的 `geoip.dat` 和 `geosite.dat`（支持中国大陆、俄罗斯、伊朗）。
 - **Wintun 支持**：Windows 构建自动下载并打包 Wintun 驱动。
 - **灵活源码来源**：可从本地源码或官方仓库克隆编译。
+- **最小依赖**：仅需 Go 编译器。
+- **跨平台支持**：支持构建多个平台（Linux、Windows、macOS）和不同架构。
 - **一键打包**：输出可直接部署的 zip 包。
 
 ## 依赖
 
-- [Rust](https://www.rust-lang.org/tools/install)
+- [Rust](https://www.rust-lang.org/tools/install)（如果你想要从源码编译）
 - [Go](https://go.dev/doc/install)（需在 `PATH` 中）
 
 ## 安装
