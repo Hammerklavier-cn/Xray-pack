@@ -22,7 +22,7 @@ log = "0.4.29"
 openssl-sys = "0.9.111"
 reqwest = { version = "0.13.1", features = ["stream"] }
 sha2 = "0.10.9"
-thiserror = "2.0.17"
+thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["bytes", "fs", "full"] }
 which = "8.0.0"
 zip = "7.1.0"
