@@ -45,13 +45,16 @@ static ARGS: OnceLock<cli::Args> = OnceLock::new();
 
 // check prerequisites
 fn check_prerequisites() -> PackResult<()> {
+    // Currently only Go compiler is required.
     let prerequisites = vec!["go"];
+
     // check if prerequisites are in PATH
     for prerequisite in prerequisites {
         if which::which(prerequisite).is_err() {
             return Err(PackError::MissingDependency(prerequisite.to_string()));
         }
     }
+
     Ok(())
 }
 
