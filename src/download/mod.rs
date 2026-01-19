@@ -4,7 +4,7 @@ use futures::StreamExt;
 use tokio::io::AsyncWriteExt;
 use tokio::runtime::Runtime;
 
-use crate::errors::PackResult;
+use crate::errors::{PackError, PackResult};
 
 pub mod geodat;
 pub mod wintun;
@@ -15,7 +15,9 @@ pub async fn download_file_async(url: impl AsRef<str>, dest: impl AsRef<Path>) -
 
     if response.status().is_success() {
         log::debug!("Successfully connected to {}", url.as_ref());
-        let mut file = tokio::fs::File::create(dest.as_ref()).await?;
+        let mut file = tokio::fs::File::create(dest.as_ref())
+            .await
+            .map_err(|_| PackError::CreateFailed(dest.as_ref().to_path_buf()))?;
         let mut stream = response.bytes_stream();
 
         // Todo: optimize the implementation so that download and write are done concurrently.
