@@ -2459,6 +2459,7 @@ dependencies = [
  "log",
  "openssl-sys",
  "reqwest",
+ "sha2",
  "thiserror 2.0.17",
  "tokio",
  "which",
