@@ -35,6 +35,10 @@ Enable all features for x86_64 CPU and Linux system (Only use GOAMD=v4 if CPU su
 CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./Xray-pack.exe -s -v --goos linux --goarch amd64
 ```
 
+### Proxy
+
+The programme determines the proxy settings from the environment variables in the following order: `HTTPS_PROXY`, `https_proxy`, `ALL_PROXY` and `all_proxy`.
+
 ### Command Line Options
 
 ```text
