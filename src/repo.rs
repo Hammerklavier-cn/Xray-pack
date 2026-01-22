@@ -11,10 +11,8 @@ fn get_https_proxy() -> Option<String> {
         Some(proxy)
     } else if let Ok(proxy) = std::env::var("ALL_PROXY") {
         Some(proxy)
-    } else if let Ok(proxy) = std::env::var("all_proxy") {
-        Some(proxy)
     } else {
-        None
+        std::env::var("all_proxy").ok()
     }
 }
 
