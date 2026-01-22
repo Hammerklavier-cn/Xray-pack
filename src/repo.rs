@@ -1,16 +1,52 @@
-use git2::Repository;
+use git2::{FetchOptions, ProxyOptions, Repository, build::RepoBuilder};
 
 use crate::{ARGS, REPOSITORY_DIR, TEMP_DIR, errors::PackResult};
 
-// Return `go describe` result
+static XRAY_CORE_REPO: &str = "https://github.com/XTLS/Xray-core.git";
+
+fn get_https_proxy() -> Option<String> {
+    if let Ok(proxy) = std::env::var("HTTPS_PROXY") {
+        Some(proxy)
+    } else if let Ok(proxy) = std::env::var("https_proxy") {
+        Some(proxy)
+    } else if let Ok(proxy) = std::env::var("ALL_PROXY") {
+        Some(proxy)
+    } else if let Ok(proxy) = std::env::var("all_proxy") {
+        Some(proxy)
+    } else {
+        None
+    }
+}
+
+/// This function returns `git describe` result
 pub fn setup_repository() -> PackResult<String> {
     // Open or clone Xray-core repository
     let args = ARGS.get().unwrap();
     let repo: Repository = if args.path_options.from_source {
-        // Download Xray-core source code
+        // Clone Xray-core source code (via proxy if available)
         let dest = TEMP_DIR.join("Xray-core");
-        log::debug!("Downloading Xray-core repository to {}", dest.display());
-        Repository::clone("https://github.com/XTLS/Xray-core.git", &dest)?
+
+        match get_https_proxy() {
+            Some(ref proxy) => {
+                log::debug!(
+                    "Cloning Xray-core repository to {} with proxy {}",
+                    dest.display(),
+                    proxy
+                );
+                let mut proxy_opts = ProxyOptions::new();
+                proxy_opts.url(proxy);
+                let mut fetch_opts = FetchOptions::new();
+                fetch_opts.proxy_options(proxy_opts);
+
+                RepoBuilder::new()
+                    .fetch_options(fetch_opts)
+                    .clone(XRAY_CORE_REPO, &dest)?
+            }
+            None => {
+                log::debug!("Cloning Xray-core repository to {}", dest.display());
+                RepoBuilder::new().clone(XRAY_CORE_REPO, &dest)?
+            }
+        }
     } else {
         log::debug!(
             "Open Xray-core-repository at {}",
