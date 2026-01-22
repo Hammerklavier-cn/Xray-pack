@@ -1,4 +1,8 @@
-use crate::{TEMP_DIR, download::download_file, errors::PackResult};
+use crate::{
+    TEMP_DIR,
+    download::download_file,
+    errors::{PackError, PackResult},
+};
 
 /// Download wintun
 pub fn download_wintun() -> PackResult<()> {
@@ -16,27 +20,33 @@ pub fn extract_wintun(platform: impl AsRef<str>) -> PackResult<()> {
     // 1. extract dll
     log::debug!("Extracting wintun.dll from {}...", zip_path.display());
     // create reader
-    let reader = std::fs::File::open(&zip_path)?;
+    let reader =
+        std::fs::File::open(&zip_path).map_err(|_| PackError::ReadFailed(zip_path.clone()))?;
     let mut zip = zip::ZipArchive::new(reader)?;
-    let mut zip_file = zip.by_path(&format!("wintun/bin/{}/wintun.dll", platform.as_ref()))?;
+    let mut zip_file = zip.by_path(format!("wintun/bin/{}/wintun.dll", platform.as_ref()))?;
 
     // create writer
-    let mut writer = std::fs::File::create(extract_path)?;
+    let mut writer = std::fs::File::create(&extract_path)
+        .map_err(|_| PackError::CreateFailed(extract_path.clone()))?;
 
     // extract and copy
-    std::io::copy(&mut zip_file, &mut writer)?;
+    std::io::copy(&mut zip_file, &mut writer)
+        .map_err(|_| PackError::CopyFailed(zip_path.clone(), extract_path))?;
 
     // 2. extract license
     log::debug!("Extracting wintun LICENSE...");
     let extract_path = TEMP_DIR.join("LICENSE-wintun.txt");
 
-    let reader = std::fs::File::open(&zip_path)?;
+    let reader =
+        std::fs::File::open(&zip_path).map_err(|_| PackError::ReadFailed(zip_path.clone()))?;
     let mut zip = zip::ZipArchive::new(reader)?;
     let mut zip_file = zip.by_path("wintun/LICENSE.txt")?;
 
-    let mut writer = std::fs::File::create(extract_path)?;
+    let mut writer = std::fs::File::create(&extract_path)
+        .map_err(|_| PackError::CreateFailed(extract_path.clone()))?;
 
-    std::io::copy(&mut zip_file, &mut writer)?;
+    std::io::copy(&mut zip_file, &mut writer)
+        .map_err(|_| PackError::CopyFailed(zip_path.clone(), extract_path))?;
 
     log::info!("Extracted wintun dll and LICENSE");
     Ok(())
