@@ -22,16 +22,17 @@ static TEMP_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
             "Removing existing temporary directory at {}",
             temp_dir.display()
         );
-        std::fs::remove_dir_all(&temp_dir).expect(&format!(
-            "Failed to remove existing temporary directory at {}",
-            temp_dir.display()
-        ));
+        std::fs::remove_dir_all(&temp_dir)
+            .map_err(|_| PackError::DeleteFailed(temp_dir.clone()))
+            .unwrap();
     }
     log::debug!("Creating temporary directory at {}", temp_dir.display());
-    std::fs::create_dir(&temp_dir).expect(&format!(
-        "Failed to create temporary directory at {}",
-        temp_dir.display()
-    ));
+    std::fs::create_dir(&temp_dir).unwrap_or_else(|_| {
+        panic!(
+            "Failed to create temporary directory at {}",
+            temp_dir.display()
+        )
+    });
     temp_dir
 });
 
@@ -41,18 +42,21 @@ static ARGS: OnceLock<cli::Args> = OnceLock::new();
 
 // check prerequisites
 fn check_prerequisites() -> PackResult<()> {
+    // Currently only Go compiler is required.
     let prerequisites = vec!["go"];
+
     // check if prerequisites are in PATH
     for prerequisite in prerequisites {
         if which::which(prerequisite).is_err() {
             return Err(PackError::MissingDependency(prerequisite.to_string()));
         }
     }
+
     Ok(())
 }
 
 fn main() -> PackResult<()> {
-    let args = ARGS.get_or_init(|| cli::Args::parse());
+    let args = ARGS.get_or_init(cli::Args::parse);
 
     match (std::env::var("RUST_LOG"), args.verbose) {
         (Err(_), true) => unsafe { std::env::set_var("RUST_LOG", "debug") },
@@ -72,9 +76,9 @@ fn main() -> PackResult<()> {
 
     download_geodat(args.download_options.region)?;
 
-    if args.build_options.goos == "windows" {
+    if args.compile_options.goos == "windows" {
         download_wintun()?;
-        extract_wintun(&args.build_options.goarch)?;
+        extract_wintun(&args.compile_options.goarch)?;
     }
 
     package_all()?;

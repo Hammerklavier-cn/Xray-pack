@@ -10,11 +10,13 @@ A Rust-based tool to build and package [Xray-core](https://github.com/XTLS/Xray-
 - **Geo Data Download**: Automatically downloads the latest `geoip.dat` and `geosite.dat` for specified regions (China Mainland, Russia, Iran).
 - **Wintun Support**: Downloads and packages Wintun driver for Windows builds.
 - **Flexible Source**: Build from a local source path or clone from the official repository.
+- **Minimum Dependencies**: No additional dependencies required apart from Go compiler.
+- **Cross Platform**: Supports building for multiple platforms (Linux, Windows, macOS) and different architectures.
 - **One-step Packaging**: Outputs a ready-to-use zip package for deployment.
 
 ## Requirements
 
-- [Rust](https://www.rust-lang.org/tools/install)
+- [Rust](https://www.rust-lang.org/tools/install), if you want to build from source.
 - [Go](https://go.dev/doc/install) (must be in your `PATH`)
 
 ## Installation
@@ -27,10 +29,10 @@ The executable will be in `target/release/Xray-pack.exe`.
 
 ## Usage
 
-Enable all features for x86_64 CPU and Linux system:
+Enable all features for x86_64 CPU and Linux system (Only use GOAMD=v4 if CPU supports AVX512 instructions):
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner,regabiargs,regabiwrappers" ./Xray-pack.exe -s -v --goos linux --goarch amd64
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./Xray-pack.exe -s -v --goos linux --goarch amd64
 ```
 
 ### Command Line Options
@@ -41,8 +43,8 @@ Usage: Xray-pack.exe [OPTIONS]
 Options:
   -s, --from-source           Build Xray-core from source code (clone to current directory)
   -p, --source-path <PATH>    Path to Xray-core source code [default: current directory]
-      --xray-version <VER>    Xray-core version/tag/branch [default: main]
   -o, --output-path <PATH>    Output directory [default: dist]
+      --xray-version <VER>    Xray-core version/tag/branch [default: main]
       --goos <GOOS>           Target OS for Go compiler [default: linux]
       --goarch <GOARCH>       Target architecture for Go compiler [default: amd64]
       --gcflags <FLAGS>       Go compiler gcflags [default: all:-l=4]
