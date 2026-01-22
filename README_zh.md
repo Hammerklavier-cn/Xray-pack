@@ -35,6 +35,10 @@ cargo build --release
 CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./xray-pack.exe -s -v --goos linux --goarch amd64
 ```
 
+### 代理
+
+程序按以下顺序从环境变量中确定代理设置：`HTTPS_PROXY`、`https_proxy`、`ALL_PROXY` 和 `all_proxy`。
+
 ### 命令行参数
 
 ```text
