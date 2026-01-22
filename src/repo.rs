@@ -6,7 +6,7 @@ use crate::{ARGS, REPOSITORY_DIR, TEMP_DIR, errors::PackResult};
 pub fn setup_repository() -> PackResult<String> {
     // Open or clone Xray-core repository
     let args = ARGS.get().unwrap();
-    let repo: Repository = if args.from_source {
+    let repo: Repository = if args.path_options.from_source {
         // Download Xray-core source code
         let dest = TEMP_DIR.join("Xray-core");
         log::debug!("Downloading Xray-core repository to {}", dest.display());
@@ -14,9 +14,9 @@ pub fn setup_repository() -> PackResult<String> {
     } else {
         log::debug!(
             "Open Xray-core-repository at {}",
-            &args.source_path.display()
+            &args.path_options.source_path.display()
         );
-        Repository::open(&args.source_path)?
+        Repository::open(&args.path_options.source_path)?
     };
     REPOSITORY_DIR
         .set(repo.path().join("../").to_path_buf())
@@ -39,7 +39,7 @@ pub fn setup_repository() -> PackResult<String> {
 
     // Get result of (git describe --always --dirty)
     let describe_result = repo
-        .describe(&git2::DescribeOptions::new().describe_tags())
+        .describe(git2::DescribeOptions::new().describe_tags())
         .and_then(|describe| describe.format(None))
         .unwrap_or_else(|_| object.id().to_string());
 
