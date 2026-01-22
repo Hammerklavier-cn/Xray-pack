@@ -13,7 +13,7 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    name: Build ${{ matrix.target }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -22,44 +22,78 @@ jobs:
           # Linux
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            goos: linux
-            goarch: amd64
+            rust_arch: x86_64
+            os_name: linux
+            arch_name: amd64
+            libc: gnu
             use_cross: false
           - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            rust_arch: x86_64
+            os_name: linux
+            arch_name: amd64
+            libc: musl
+            use_cross: true
+          - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            goos: linux
-            goarch: arm64
+            rust_arch: aarch64
+            os_name: linux
+            arch_name: arm64
+            libc: gnu
+            use_cross: true
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            rust_arch: aarch64
+            os_name: linux
+            arch_name: arm64
+            libc: musl
             use_cross: true
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
-            goos: linux
-            goarch: arm
-            goarm: 7
+            rust_arch: armv7
+            os_name: linux
+            arch_name: arm
+            libc: gnu
+            use_cross: true
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-musleabihf
+            rust_arch: armv7
+            os_name: linux
+            arch_name: arm
+            libc: musl
             use_cross: true
           - os: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
-            goos: linux
-            goarch: riscv64
+            rust_arch: riscv64gc
+            os_name: linux
+            arch_name: riscv64
+            libc: gnu
             use_cross: true
 
           # macOS
-          - os: macos-13
-            target: x86_64-apple-darwin
-            goos: darwin
-            goarch: amd64
-            use_cross: false
           - os: macos-latest
             target: aarch64-apple-darwin
-            goos: darwin
-            goarch: arm64
+            rust_arch: aarch64
+            os_name: darwin
+            arch_name: arm64
+            libc: darwin
             use_cross: false
 
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            goos: windows
-            goarch: amd64
+            rust_arch: x86_64
+            os_name: windows
+            arch_name: amd64
+            libc: msvc
             use_cross: false
+          - os: ubuntu-latest
+            target: x86_64-pc-windows-gnu
+            rust_arch: x86_64
+            os_name: windows
+            arch_name: amd64
+            libc: gnu
+            use_cross: true
 
     steps:
       - name: Checkout repository
@@ -71,15 +105,33 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "stable"
-          cache: false
-
       - name: Install cross
         if: matrix.use_cross
         uses: taiki-e/install-action@cross
+
+      - name: Install Strawberry Perl (Windows only)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          # Download and install Strawberry Perl for Windows
+          # This is required for building openssl-sys with vendored feature on Windows
+          echo "Installing Strawberry Perl for Windows..."
+
+          # Clean up old files and directories if they exist
+          rm -f strawberry-perl.zip
+          rm -rf C:/strawberry
+
+          curl -L -o strawberry-perl.zip https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54201_64bit/strawberry-perl-5.42.0.1-64bit-portable.zip
+          7z x strawberry-perl.zip -o"C:/strawberry" -y
+
+          # Add Strawberry Perl to PATH for current and subsequent steps
+          # echo "C:/strawberry/perl/bin" >> $GITHUB_PATH
+          # export PATH="C:/strawberry/perl/bin:$PATH"
+          export PERL="C:/strawberry/perl/bin/perl.exe"
+
+          # Verify the correct Perl is being used
+          echo "Perl version:"
+          $PERL --version | head -n 2
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.5
@@ -89,10 +141,14 @@ jobs:
       - name: Build binary
         env:
           RUSTC_WRAPPER: sccache
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          GOARM: ${{ matrix.goarm }}
         run: |
+          # On Windows, verify Perl is available for openssl-sys vendored build
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            echo "Checking Perl installation..."
+            export PERL="C:/strawberry/perl/bin/perl.exe"
+            $PERL --version || echo "Perl not found in PATH"
+          fi
+
           if [ "${{ matrix.use_cross }}" = "true" ]; then
             cross build --release --target ${{ matrix.target }}
           else
@@ -104,22 +160,22 @@ jobs:
         shell: bash
         run: |
           # Determine binary extension and name
-          if [[ "${{ matrix.goos }}" == "windows" ]]; then
-            BINARY="Xray-pack.exe"
+          if [[ "${{ matrix.os_name }}" == "windows" ]]; then
+            BINARY="xray-pack.exe"
             EXE_EXT=".exe"
           else
-            BINARY="Xray-pack"
+            BINARY="xray-pack"
             EXE_EXT=""
           fi
 
-          # Determine artifact name
-          ARTIFACT_NAME="Xray-pack-${{ matrix.goos }}-${{ matrix.goarch }}${EXE_EXT}"
+          # Unified artifact name: always include libc suffix
+          ARTIFACT_NAME="xray-pack-${{ matrix.os_name }}-${{ matrix.arch_name }}-${{ matrix.libc }}${EXE_EXT}"
 
           # Copy binary to artifact name
           cp target/${{ matrix.target }}/release/${BINARY} ${ARTIFACT_NAME}
 
           # Make it executable on Unix-like systems
-          if [[ "${{ matrix.goos }}" != "windows" ]]; then
+          if [[ "${{ matrix.os_name }}" != "windows" ]]; then
             chmod +x ${ARTIFACT_NAME}
           fi
 
@@ -128,8 +184,7 @@ jobs:
       - name: Compress binary
         shell: bash
         run: |
-          cd ${{ github.workspace }}
-          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+          if [[ "${{ matrix.os_name }}" == "windows" ]]; then
             7z a -tzip "${{ env.ARTIFACT_NAME }}.zip" "${{ env.ARTIFACT_NAME }}"
           else
             tar -czf "${{ env.ARTIFACT_NAME }}.tar.gz" "${{ env.ARTIFACT_NAME }}"
@@ -171,22 +226,34 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
           body: |
-            ## 🎉 Xray-pack ${{ github.ref_name }}
+            ## 🎉 xray-pack ${{ github.ref_name }}
 
             ### 📦 下载 / Downloads
 
             请根据你的系统选择对应的二进制文件：
             Please select the binary file corresponding to your system:
 
-            | OS | Architecture | Download |
-            |---|---|---|
-            | Linux | x86_64 | Xray-pack-linux-amd64 |
-            | Linux | arm64 | Xray-pack-linux-arm64 |
-            | Linux | armv7 | Xray-pack-linux-arm |
-            | Linux | riscv64 | Xray-pack-linux-riscv64 |
-            | macOS (Intel) | x86_64 | Xray-pack-darwin-amd64 |
-            | macOS (Apple Silicon) | arm64 | Xray-pack-darwin-arm64 |
-            | Windows | x86_64 | Xray-pack-windows-amd64.exe |
+            | OS | Architecture | LibC | Download |
+            |---|---|---|---|
+            | Linux | x86_64 | glibc | xray-pack-linux-amd64-gnu |
+            | Linux | x86_64 | musl | xray-pack-linux-amd64-musl |
+            | Linux | arm64 | glibc | xray-pack-linux-arm64-gnu |
+            | Linux | arm64 | musl | xray-pack-linux-arm64-musl |
+            | Linux | armv7 | glibc | xray-pack-linux-arm-gnu |
+            | Linux | armv7 | musl | xray-pack-linux-arm-musl |
+            | Linux | riscv64 | glibc | xray-pack-linux-riscv64-gnu |
+            | Linux | riscv64 | musl | xray-pack-linux-riscv64-musl |
+            | macOS (Apple Silicon) | arm64 | Darwin | xray-pack-darwin-arm64-darwin |
+            | Windows | x86_64 | MSVC | xray-pack-windows-amd64-msvc.exe |
+            | Windows | x86_64 | GNU | xray-pack-windows-amd64-gnu.exe |
+
+            **注意**:
+            - musl 版本是静态链接的二进制文件，可在任何 Linux 发行版上直接运行，无需额外依赖。
+            - Windows GNU 版本使用 mingw 工具链构建，与 MSVC 版本相比可能具有不同的行为。
+
+            **Note**:
+            - musl versions are statically linked binaries that can run on any Linux distribution without additional dependencies.
+            - Windows GNU version is built using mingw toolchain and may have different behavior compared to MSVC version.
 
             ### 📝 使用说明 / Usage
 

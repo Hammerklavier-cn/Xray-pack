@@ -9,8 +9,8 @@ fn copy_to_dir() {
     let repo_dir = REPOSITORY_DIR.get().unwrap();
 
     let name = format!(
-        "Xray-{}-{}-{}",
-        args.xray_version, args.build_options.goarch, args.build_options.goos
+        "xray-{}-{}-{}",
+        args.xray_version, args.compile_options.goarch, args.compile_options.goos
     );
     let dir = TEMP_DIR.join(name);
     std::fs::create_dir(&dir).unwrap();
@@ -20,7 +20,7 @@ fn copy_to_dir() {
     );
 
     let mut files = Vec::new();
-    files.push(repo_dir.join(if args.build_options.goos == "windows" {
+    files.push(repo_dir.join(if args.compile_options.goos == "windows" {
         "xray.exe"
     } else {
         "xray"
@@ -29,7 +29,7 @@ fn copy_to_dir() {
     files.push(repo_dir.join("LICENSE"));
     files.push(TEMP_DIR.join("geoip.dat"));
     files.push(TEMP_DIR.join("geosite.dat"));
-    if args.build_options.goos == "windows" {
+    if args.compile_options.goos == "windows" {
         files.push(TEMP_DIR.join("wintun.dll"));
         files.push(TEMP_DIR.join("LICENSE-wintun.txt"));
     }
@@ -46,8 +46,8 @@ fn compress_zip() -> PackResult<PathBuf> {
     let args = ARGS.get().unwrap();
     let repo_dir = REPOSITORY_DIR.get().unwrap();
     let name = format!(
-        "Xray-{}-{}-{}.zip",
-        args.xray_version, args.build_options.goarch, args.build_options.goos
+        "xray-{}-{}-{}.zip",
+        args.xray_version, args.compile_options.goarch, args.compile_options.goos
     );
 
     let zip_path = TEMP_DIR.join(name);
@@ -61,7 +61,7 @@ fn compress_zip() -> PackResult<PathBuf> {
     );
 
     let mut files = Vec::new();
-    files.push(TEMP_DIR.join(if args.build_options.goos == "windows" {
+    files.push(TEMP_DIR.join(if args.compile_options.goos == "windows" {
         "xray.exe"
     } else {
         "xray"
@@ -70,15 +70,15 @@ fn compress_zip() -> PackResult<PathBuf> {
     files.push(repo_dir.join("LICENSE"));
     files.push(TEMP_DIR.join("geoip.dat"));
     files.push(TEMP_DIR.join("geosite.dat"));
-    if args.build_options.goos == "windows" {
+    if args.compile_options.goos == "windows" {
         files.push(TEMP_DIR.join("wintun.dll"));
         files.push(TEMP_DIR.join("LICENSE-wintun.txt"));
     }
 
     for ref file in files {
         log::debug!("Compressing {}", file.display());
-        let mut file_reader =
-            std::fs::File::open(file).expect(&format!("Failed to open {}", file.display()));
+        let mut file_reader = std::fs::File::open(file)
+            .unwrap_or_else(|_| panic!("Failed to open {}", file.display()));
 
         let dest = file.file_name().unwrap().to_str().unwrap();
         zip_writer.start_file(dest, options)?;
@@ -94,13 +94,18 @@ pub fn package_all() -> PackResult<()> {
 
     // copy to target directory
     let args = ARGS.get().unwrap();
-    std::fs::create_dir_all(&args.output_path).unwrap();
-    let release_path = args.output_path.join(zip_path.file_name().unwrap());
-    std::fs::copy(&zip_path, &release_path).expect(&format!(
-        "Failed to copy {} to {}",
-        zip_path.display(),
-        release_path.display()
-    ));
+    std::fs::create_dir_all(&args.path_options.output_path).unwrap();
+    let release_path = args
+        .path_options
+        .output_path
+        .join(zip_path.file_name().unwrap());
+    std::fs::copy(&zip_path, &release_path).unwrap_or_else(|_| {
+        panic!(
+            "Failed to copy {} to {}",
+            zip_path.display(),
+            release_path.display()
+        )
+    });
 
     log::info!("Copied the package to {}", release_path.display());
     Ok(())
