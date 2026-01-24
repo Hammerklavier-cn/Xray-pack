@@ -19,7 +19,8 @@ There are several options to maximize the performance of Xray-core:
 + `GOAMD64` `GO386` `GOARM` environment variables: Specify the microarchitecture of the CPU.
 + `GOEXPERIMENT` environment variable: Specify the experimental features of the Go compiler.
     `jsonv2`, `newinliner`, `greenteagc`, `regabiargs`, `regabiwrappers` might improve performance.
-+ `CGO_ENABLED` environment variable: Specify whether to enable CGO. `CGO_ENABLED=0` is recommended for better performance.
++ `CGO_ENABLED` environment variable: Specify whether to enable CGO. `CGO_ENABLED=0` is recommended for better performance. \
+Note that this programme will override `go env CGO_ENABLED` and set `CGO_ENABLED=0` unless you specify it manually.
 + `--gcflags`: Specify the `-gcflags` for the Go compiler. Default to `all=-l=4`, maximizing inline optimization.\
 "
 )]
@@ -80,14 +81,14 @@ pub struct PathOptions {
 pub struct CompileOptions {
     #[arg(
         long,
-        help = "Specify GOOS for the Go compiler. Default to `linux`",
+        help = "Specify GOOS for the Go compiler. This will override `GOARCH` and `go env GOOS` values.",
         default_value = "linux"
     )]
     pub goos: String,
 
     #[arg(
         long,
-        help = "Specify GOARCH for the Go compiler. Default to `amd64`",
+        help = "Specify GOARCH for the Go compiler. This will override `GOARCH` and `go env GOARCH` values.",
         default_value = "amd64"
     )]
     pub goarch: String,
