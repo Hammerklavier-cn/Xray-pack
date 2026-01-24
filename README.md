@@ -19,21 +19,17 @@ A Rust-based tool to build and package [Xray-core](https://github.com/XTLS/Xray-
 - [Rust](https://www.rust-lang.org/tools/install), if you want to build from source.
 - [Go](https://go.dev/doc/install) (must be in your `PATH`)
 
-## Installation
+## Build & Installation
+
+Type to the terminal
 
 ```bash
-cargo build --release
+CFLAGS="-O3 -march=native" CXXFLAGS="-O3 -march=native" RUSTFLAGS="-C target-cpu=native" cargo install --path .
 ```
 
-The executable will be in `target/release/Xray-pack.exe`.
+and the most optimized installation programme will be installed.
 
 ## Usage
-
-Enable all features for x86_64 CPU and Linux system (Only use GOAMD=v4 if CPU supports AVX512 instructions):
-
-```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./Xray-pack.exe -s -v --goos linux --goarch amd64
-```
 
 ### Proxy
 
@@ -49,14 +45,34 @@ Options:
   -p, --source-path <PATH>    Path to Xray-core source code [default: current directory]
   -o, --output-path <PATH>    Output directory [default: dist]
       --xray-version <VER>    Xray-core version/tag/branch [default: main]
-      --goos <GOOS>           Target OS for Go compiler [default: linux]
-      --goarch <GOARCH>       Target architecture for Go compiler [default: amd64]
+      --goos <GOOS>           Target OS for Go compiler. This will override `GOARCH` and `go env GOOS` values. [default: linux]
+      --goarch <GOARCH>       Target architecture for Go compiler. This will override `GOARCH` and `go env GOARCH` values. [default: amd64]
       --gcflags <FLAGS>       Go compiler gcflags [default: all:-l=4]
       --ldflags <FLAGS>       Go compiler ldflags [default: -X github.com/xtls/xray-core/core.build=${COMMID} -s -w -buildid=]
       --region <REGION>       Region for geo files [default: china-mainland] [possible: china-mainland, russia, iran]
   -v, --verbose               Enable verbose output
   -h, --help                  Print help
   -V, --version               Print version
+```
+
+### Examples
+
+Enable all features for x86_64 CPU and Linux system (Only use GOAMD=v4 if CPU supports AVX512 instructions):
+
+```bash
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./Xray-pack.exe -s -v --goos linux --goarch amd64
+```
+
+Optimize for most x86_64 CPU (with AVX2 support) and Windows system:
+
+```bash
+CGO_ENABLED=0 GOAMD64="v3" ./xray-pack.exe -s -v --goos windows --goarch amd64
+```
+
+Build for ARM64 MacOS, disabling inlining:
+
+```bash
+CGO_ENABLED=0 ./xray-pack.exe -s -v --goos darwin --goarch arm64 --gcflags "all:-l"
 ```
 
 ### Output

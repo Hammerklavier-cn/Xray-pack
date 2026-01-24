@@ -22,9 +22,8 @@ pub fn build_xray(commid: &str) -> PackResult<()> {
 
     let mut cmd = Command::new("go");
     let mut ldflags = String::new();
-    cmd.env("GOOS", &args.compile_options.goos)
-        .env("GOARCH", &args.compile_options.goarch)
-        .args([
+    let build_args = {
+        let mut vec = vec![
             "build",
             "-o",
             output_path.to_str().unwrap(),
@@ -38,9 +37,21 @@ pub fn build_xray(commid: &str) -> PackResult<()> {
                     format!("-X github.com/xtls/xray-core/core.build={commid} -s -w -buildid=");
                 &ldflags
             }),
-            "-v",
             "./main",
-        ]);
+        ];
+        if args.verbose {
+            vec.push("-v")
+        }
+        vec
+    };
+
+    cmd.env("GOOS", &args.compile_options.goos)
+        .env("GOARCH", &args.compile_options.goarch)
+        .env(
+            "CGO_ENABLED",
+            std::env::var("CGO_ENABLED").unwrap_or_else(|_| "0".to_string()),
+        )
+        .args(&build_args);
 
     cmd.spawn()
         .map_err(|e| PackError::BuildFailed(e.to_string()))?
