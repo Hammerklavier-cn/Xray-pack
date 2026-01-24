@@ -1,8 +1,38 @@
+use std::fmt::Display;
+
 use crate::{
     TEMP_DIR,
     download::download_file,
     errors::{PackError, PackResult},
 };
+
+pub enum WinPlatform {
+    X86,
+    Amd64,
+    Arm,
+    Arm64,
+}
+impl Display for WinPlatform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WinPlatform::X86 => write!(f, "x86"),
+            WinPlatform::Amd64 => write!(f, "amd64"),
+            WinPlatform::Arm => write!(f, "arm"),
+            WinPlatform::Arm64 => write!(f, "arm64"),
+        }
+    }
+}
+impl From<&str> for WinPlatform {
+    fn from(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "x86" => WinPlatform::X86,
+            "amd64" => WinPlatform::Amd64,
+            "arm" => WinPlatform::Arm,
+            "arm64" => WinPlatform::Arm64,
+            _ => panic!("Invalid platform: {}", s),
+        }
+    }
+}
 
 /// Download wintun
 pub fn download_wintun() -> PackResult<()> {
@@ -13,7 +43,7 @@ pub fn download_wintun() -> PackResult<()> {
 }
 
 /// Extract .dll according to platform. Also copy the LICENSE file.
-pub fn extract_wintun(platform: impl AsRef<str>) -> PackResult<()> {
+pub fn extract_wintun(platform: WinPlatform) -> PackResult<()> {
     let zip_path = TEMP_DIR.join("wintun.zip");
     let extract_path = TEMP_DIR.join("wintun.dll");
 
@@ -23,7 +53,7 @@ pub fn extract_wintun(platform: impl AsRef<str>) -> PackResult<()> {
     let reader =
         std::fs::File::open(&zip_path).map_err(|_| PackError::ReadFailed(zip_path.clone()))?;
     let mut zip = zip::ZipArchive::new(reader)?;
-    let mut zip_file = zip.by_path(format!("wintun/bin/{}/wintun.dll", platform.as_ref()))?;
+    let mut zip_file = zip.by_path(format!("wintun/bin/{}/wintun.dll", platform))?;
 
     // create writer
     let mut writer = std::fs::File::create(&extract_path)
