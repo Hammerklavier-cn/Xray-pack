@@ -107,12 +107,6 @@ pub struct CompileOptions {
 
 #[derive(Debug, Parser)]
 pub struct DownloadOptions {
-    // #[arg(
-    //     long,
-    //     help = "Specify platform for the Wintun driver. This is only required if the platform is Windows.",
-    //     default_value = "amd64"
-    // )]
-    // pub platform: WinPlatform,
     #[arg(
         long,
         help = "Specify region for geo files",
@@ -120,25 +114,6 @@ pub struct DownloadOptions {
     )]
     pub region: Region,
 }
-
-// #[derive(Debug, Clone, Copy, ValueEnum)]
-// #[value(rename_all = "lowercase")]
-// pub enum WinPlatform {
-//     X86,
-//     Amd64,
-//     Arm,
-//     Arm64,
-// }
-// impl Display for WinPlatform {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             WinPlatform::X86 => write!(f, "x86"),
-//             WinPlatform::Amd64 => write!(f, "amd64"),
-//             WinPlatform::Arm => write!(f, "arm"),
-//             WinPlatform::Arm64 => write!(f, "arm64"),
-//         }
-//     }
-// }
 
 /// Three main restricted regions.
 #[derive(Debug, Clone, Copy, ValueEnum)]
