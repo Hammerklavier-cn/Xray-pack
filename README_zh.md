@@ -19,21 +19,17 @@
 - [Rust](https://www.rust-lang.org/tools/install)（如果你想要从源码编译）
 - [Go](https://go.dev/doc/install)（需在 `PATH` 中）
 
-## 安装
+## 编译&安装
+
+命令行中输入 
 
 ```bash
-cargo build --release
+CFLAGS="-O3 -march=native" CXXFLAGS="-O3 -march=native" RUSTFLAGS="-C target-cpu=native" cargo install --path .
 ```
 
-可执行文件位于 `target/release/xray-pack.exe`。
+以安装最优化的安装程序
 
 ## 使用方法
-
-为 x86_64 CPU 和 Linux 系统启用所有性能特性（若 CPU 支持 AVX512 指令集）：
-
-```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./xray-pack.exe -s -v --goos linux --goarch amd64
-```
 
 ### 代理
 
@@ -49,14 +45,34 @@ CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./xray-pa
   -p, --source-path <路径>    xray-core 源码路径 [默认: 当前目录]
   -o, --output-path <路径>    输出目录 [默认: dist]
       --xray-version <版本>   xray-core 版本/标签/分支 [默认: main]
-      --goos <GOOS>           Go 编译目标操作系统 [默认: linux]
-      --goarch <GOARCH>       Go 编译目标架构 [默认: amd64]
+      --goos <GOOS>           Go 编译目标操作系统。这将覆盖 `GOARCH` 和 `go env GOOS` 值。[默认: linux]
+      --goarch <GOARCH>       Go 编译目标架构。这将覆盖 `GOARCH` 和 `go env GOARCH` 值。[默认: amd64]
       --gcflags <参数>        Go 编译 gcflags [默认: all:-l=4]
       --ldflags <参数>        Go 编译 ldflags [默认: -X github.com/xtls/xray-core/core.build=${COMMID} -s -w -buildid=]
       --region <区域>         Geo 数据区域 [默认: china-mainland] [可选: china-mainland, russia, iran]
   -v, --verbose               输出详细日志
   -h, --help                  显示帮助
   -V, --version               显示版本
+```
+
+### 示例
+
+为 x86_64 CPU 和 Linux 系统启用所有性能特性（若 CPU 支持 AVX512 指令集）：
+
+```bash
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./xray-pack.exe -s -v --goos linux --goarch amd64
+```
+
+为主流 x86_64 CPU 和 Windows 系统启用指令集优化（CPU 只支持到 AVX2 指令集）：
+
+```bash
+CGO_ENABLED=0 GOAMD64="v3" ./xray-pack.exe -s -v --goos windows --goarch amd64
+```
+
+为 ARM64 CPU 和 macOS 编译，禁用内联优化：
+
+```bash
+CGO_ENABLED=0 ./xray-pack.exe -s -v --goos darwin --goarch arm64 --gcflags "all:-l"
 ```
 
 ### 输出内容
