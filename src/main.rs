@@ -4,7 +4,7 @@ use std::{path::PathBuf, sync::LazyLock};
 use clap::Parser;
 
 use crate::download::geodat::download_geodat;
-use crate::download::wintun::{download_wintun, extract_wintun};
+use crate::download::wintun::{WinPlatform, download_wintun, extract_wintun};
 use crate::errors::{PackError, PackResult};
 use crate::package::package_all;
 
@@ -76,9 +76,9 @@ fn main() -> PackResult<()> {
 
     download_geodat(args.download_options.region)?;
 
-    if args.compile_options.goos == "windows" {
+    if args.compile_options.goos.to_lowercase() == "windows" {
         download_wintun()?;
-        extract_wintun(&args.compile_options.goarch)?;
+        extract_wintun(WinPlatform::from(args.compile_options.goarch.as_str()))?;
     }
 
     package_all()?;
