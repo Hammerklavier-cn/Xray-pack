@@ -34,58 +34,51 @@ impl From<&str> for WinPlatform {
     }
 }
 
-/// Download wintun
-pub fn download_wintun() -> PackResult<()> {
-    let url = "https://www.wintun.net/builds/wintun-0.14.1.zip";
-    download_file(url, TEMP_DIR.join("wintun.zip"))?;
-    log::info!("Downloaded wintun");
-    Ok(())
-}
+const WINTUN_URL: &str = "https://www.wintun.net/builds/wintun-0.14.1.zip";
 
-/// Extract .dll according to platform. Also copy the LICENSE file.
-pub fn extract_wintun(platform: WinPlatform) -> PackResult<()> {
+/// Download wintun and extract .dll according to platform. Also extract the LICENSE file.
+pub fn download_and_extract_wintun(platform: WinPlatform) -> PackResult<()> {
     let zip_path = TEMP_DIR.join("wintun.zip");
-    let extract_path = TEMP_DIR.join("wintun.dll");
 
-    // 1. extract dll
+    // Download wintun
+    download_file(WINTUN_URL, &zip_path)?;
+    log::info!("Downloaded wintun");
+
+    // 1. Extract dll
+    let dll_path = TEMP_DIR.join("wintun.dll");
     log::debug!("Extracting wintun.dll from {}...", zip_path.display());
-    // create reader
+
     let reader =
         std::fs::File::open(&zip_path).map_err(|_| PackError::ReadFailed(zip_path.clone()))?;
     let mut zip = zip::ZipArchive::new(reader)?;
     let mut zip_file = zip.by_path(format!("wintun/bin/{}/wintun.dll", platform))?;
 
-    // create writer
-    let mut writer = std::fs::File::create(&extract_path)
-        .map_err(|_| PackError::CreateFailed(extract_path.clone()))?;
+    let mut writer =
+        std::fs::File::create(&dll_path).map_err(|_| PackError::CreateFailed(dll_path.clone()))?;
 
-    // extract and copy
     std::io::copy(&mut zip_file, &mut writer)
-        .map_err(|_| PackError::CopyFailed(zip_path.clone(), extract_path))?;
+        .map_err(|_| PackError::CopyFailed(zip_path.clone(), dll_path.clone()))?;
 
-    // 2. extract license
+    // 2. Extract license
+    let license_path = TEMP_DIR.join("LICENSE-wintun.txt");
     log::debug!("Extracting wintun LICENSE...");
-    let extract_path = TEMP_DIR.join("LICENSE-wintun.txt");
 
     let reader =
         std::fs::File::open(&zip_path).map_err(|_| PackError::ReadFailed(zip_path.clone()))?;
     let mut zip = zip::ZipArchive::new(reader)?;
     let mut zip_file = zip.by_path("wintun/LICENSE.txt")?;
 
-    let mut writer = std::fs::File::create(&extract_path)
-        .map_err(|_| PackError::CreateFailed(extract_path.clone()))?;
+    let mut writer = std::fs::File::create(&license_path)
+        .map_err(|_| PackError::CreateFailed(license_path.clone()))?;
 
     std::io::copy(&mut zip_file, &mut writer)
-        .map_err(|_| PackError::CopyFailed(zip_path.clone(), extract_path.clone()))?;
+        .map_err(|_| PackError::CopyFailed(zip_path.clone(), license_path.clone()))?;
 
     log::info!("Extracted wintun dll and LICENSE");
 
     // Add wintun.dll and LICENSE-wintun.txt to collected files
-    COLLECTED_FILES
-        .lock()
-        .unwrap()
-        .push(TEMP_DIR.join("wintun.dll"));
-    COLLECTED_FILES.lock().unwrap().push(extract_path);
+    COLLECTED_FILES.lock().unwrap().push(dll_path);
+    COLLECTED_FILES.lock().unwrap().push(license_path);
 
     Ok(())
 }
