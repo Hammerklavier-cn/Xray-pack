@@ -1,5 +1,5 @@
 use crate::{
-    TEMP_DIR,
+    COLLECTED_FILES, TEMP_DIR,
     cli::Region,
     download::{download_file, download_file_content},
     errors::PackResult,
@@ -28,6 +28,9 @@ pub fn download_geodat(region: Region) -> PackResult<()> {
     )?;
     log::info!("Verified geoip.dat checksum");
 
+    // Add geoip.dat to collected files
+    COLLECTED_FILES.lock().unwrap().push(geoip_path);
+
     // Download geosite.dat
     let geosite_path = TEMP_DIR.join("geosite.dat");
     download_file(format!("{url}geosite.dat"), &geosite_path)?;
@@ -44,6 +47,9 @@ pub fn download_geodat(region: Region) -> PackResult<()> {
         geosite_checksum.split_whitespace().next().unwrap(),
     )?;
     log::info!("Verified geosite.dat checksum");
+
+    // Add geosite.dat to collected files
+    COLLECTED_FILES.lock().unwrap().push(geosite_path);
 
     Ok(())
 }

@@ -1,10 +1,12 @@
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::{path::PathBuf, sync::LazyLock};
 
 use clap::Parser;
 
+use crate::cli::CompileTarget;
 use crate::download::geodat::download_geodat;
-use crate::download::wintun::{WinPlatform, download_wintun, extract_wintun};
+use crate::download::v2ray_extra::copy_v2ray_services;
+use crate::download::wintun::{WinPlatform, download_and_extract_wintun};
 use crate::errors::{PackError, PackResult};
 use crate::package::package_all;
 
@@ -40,6 +42,10 @@ static REPOSITORY_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 static ARGS: OnceLock<cli::Args> = OnceLock::new();
 
+/// A global collection of file paths that have been downloaded or compiled.
+/// These files will be packaged together at the end.
+pub static COLLECTED_FILES: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
+
 // check prerequisites
 fn check_prerequisites() -> PackResult<()> {
     // Currently only Go compiler is required.
@@ -58,6 +64,8 @@ fn check_prerequisites() -> PackResult<()> {
 fn main() -> PackResult<()> {
     let args = ARGS.get_or_init(cli::Args::parse);
 
+    // Initialize logging.
+    // If `RUST_LOG` is not set, set it to `debug` if verbose is true, otherwise `info`,
     match (std::env::var("RUST_LOG"), args.verbose) {
         (Err(_), true) => unsafe { std::env::set_var("RUST_LOG", "debug") },
         (Err(_), false) => unsafe { std::env::set_var("RUST_LOG", "info") },
@@ -71,14 +79,21 @@ fn main() -> PackResult<()> {
 
     let commid = repo::setup_repository()?;
 
-    // Build Xray-core
+    // Build Xray-core or v2ray-core
     compile::build_xray(&commid)?;
 
     download_geodat(args.download_options.region)?;
 
-    if args.compile_options.goos.to_lowercase() == "windows" {
-        download_wintun()?;
-        extract_wintun(WinPlatform::from(args.compile_options.goarch.as_str()))?;
+    // Download target-specific files
+    match &args.target {
+        CompileTarget::Xray { .. } => {
+            if args.go_target.goos.to_lowercase() == "windows" {
+                download_and_extract_wintun(WinPlatform::from(args.go_target.goarch.as_str()))?;
+            }
+        }
+        CompileTarget::V2ray { .. } => {
+            copy_v2ray_services()?;
+        }
     }
 
     package_all()?;

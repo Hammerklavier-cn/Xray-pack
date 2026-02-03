@@ -7,6 +7,7 @@ use tokio::runtime::Runtime;
 use crate::errors::{PackError, PackResult};
 
 pub mod geodat;
+pub mod v2ray_extra;
 pub mod wintun;
 
 /// Asynchronous version of download function

@@ -1,35 +1,66 @@
 use std::path::PathBuf;
 
-use crate::{ARGS, REPOSITORY_DIR, TEMP_DIR, errors::PackResult};
+use crate::{
+    ARGS, COLLECTED_FILES, REPOSITORY_DIR, TEMP_DIR, cli::CompileTarget, errors::PackResult,
+};
 
+/// Copy all necessary files to a directory. The path of this directory is returned.
 #[deprecated(note = "Use compress_zip instead.")]
 #[allow(dead_code)]
-fn copy_to_dir() {
+fn copy_to_dir() -> PackResult<PathBuf> {
     let args = ARGS.get().unwrap();
     let repo_dir = REPOSITORY_DIR.get().unwrap();
 
-    let name = format!(
-        "xray-{}-{}-{}",
-        args.xray_version, args.compile_options.goarch, args.compile_options.goos
-    );
-    let dir = TEMP_DIR.join(name);
-    std::fs::create_dir(&dir).unwrap();
+    let dir_name = match &args.target {
+        CompileTarget::V2ray {
+            compile_options: _,
+            v2ray_version,
+        } => {
+            format! {
+                "v2ray-{}-{}-{}",
+                v2ray_version, args.go_target.goarch, args.go_target.goos,
+            }
+        }
+        CompileTarget::Xray {
+            compile_options: _,
+            xray_version,
+        } => {
+            format!(
+                "xray-{}-{}-{}",
+                xray_version, args.go_target.goarch, args.go_target.goos
+            )
+        }
+    };
+    let dir = TEMP_DIR.join(dir_name);
+    std::fs::create_dir(&dir)?;
     log::debug!(
         "Created directory: {}. All files will be copied to it.",
         dir.display()
     );
 
     let mut files = Vec::new();
-    files.push(repo_dir.join(if args.compile_options.goos == "windows" {
-        "xray.exe"
-    } else {
-        "xray"
+    files.push(repo_dir.join({
+        let mut s: String;
+        match args.target {
+            CompileTarget::V2ray {
+                compile_options: _,
+                v2ray_version: _,
+            } => s = String::from("v2ray"),
+            CompileTarget::Xray {
+                compile_options: _,
+                xray_version: _,
+            } => s = String::from("xray"),
+        };
+        if args.go_target.goos == "windows" {
+            s.push_str(".exe");
+        }
+        s
     }));
     files.push(repo_dir.join("README.md"));
     files.push(repo_dir.join("LICENSE"));
     files.push(TEMP_DIR.join("geoip.dat"));
     files.push(TEMP_DIR.join("geosite.dat"));
-    if args.compile_options.goos == "windows" {
+    if args.go_target.goos == "windows" {
         files.push(TEMP_DIR.join("wintun.dll"));
         files.push(TEMP_DIR.join("LICENSE-wintun.txt"));
     }
@@ -38,17 +69,34 @@ fn copy_to_dir() {
     for ref file in files {
         let dest = dir.join(file.file_name().unwrap());
         log::debug!("Copying {} to {}", file.display(), dest.display());
-        std::fs::copy(file, &dest).unwrap();
+        std::fs::copy(file, &dest)?;
     }
+    Ok(dir)
 }
 
 fn compress_zip() -> PackResult<PathBuf> {
     let args = ARGS.get().unwrap();
     let repo_dir = REPOSITORY_DIR.get().unwrap();
-    let name = format!(
-        "xray-{}-{}-{}.zip",
-        args.xray_version, args.compile_options.goarch, args.compile_options.goos
-    );
+    let name = match &args.target {
+        CompileTarget::V2ray {
+            compile_options: _,
+            v2ray_version,
+        } => {
+            format! {
+                "v2ray-{}-{}-{}.zip",
+                v2ray_version, args.go_target.goarch, args.go_target.goos,
+            }
+        }
+        CompileTarget::Xray {
+            compile_options: _,
+            xray_version,
+        } => {
+            format!(
+                "xray-{}-{}-{}.zip",
+                xray_version, args.go_target.goarch, args.go_target.goos
+            )
+        }
+    };
 
     let zip_path = TEMP_DIR.join(name);
     let file_writer = std::fs::File::create(&zip_path).unwrap();
@@ -60,20 +108,10 @@ fn compress_zip() -> PackResult<PathBuf> {
         zip_path.display()
     );
 
-    let mut files = Vec::new();
-    files.push(TEMP_DIR.join(if args.compile_options.goos == "windows" {
-        "xray.exe"
-    } else {
-        "xray"
-    }));
+    // Get collected files and add README.md and LICENSE from repo
+    let mut files = COLLECTED_FILES.lock().unwrap().clone();
     files.push(repo_dir.join("README.md"));
     files.push(repo_dir.join("LICENSE"));
-    files.push(TEMP_DIR.join("geoip.dat"));
-    files.push(TEMP_DIR.join("geosite.dat"));
-    if args.compile_options.goos == "windows" {
-        files.push(TEMP_DIR.join("wintun.dll"));
-        files.push(TEMP_DIR.join("LICENSE-wintun.txt"));
-    }
 
     for ref file in files {
         log::debug!("Compressing {}", file.display());
