@@ -1,7 +1,8 @@
 use std::process::Command;
 
 use crate::{
-    ARGS, REPOSITORY_DIR, TEMP_DIR, cli,
+    ARGS, REPOSITORY_DIR, TEMP_DIR,
+    cli::{self, CompileTarget},
     errors::{PackError, PackResult},
 };
 
@@ -9,10 +10,23 @@ pub fn build_xray(commid: &str) -> PackResult<()> {
     log::debug!("Building Xray-core");
     let args = ARGS.get().unwrap();
 
-    let output_name: &'static str = if args.compile_options.goos == "windows" {
-        "xray.exe"
-    } else {
-        "xray"
+    let output_name: String = {
+        let s = match args.target {
+            CompileTarget::V2ray {
+                compile_options: _,
+                v2ray_version: _,
+            } => "v2ray",
+            CompileTarget::Xray {
+                compile_options: _,
+                xray_version: _,
+            } => "xray",
+        };
+        let goos = &args.go_target.goos;
+        if goos == "windows" {
+            format!("{s}.exe")
+        } else {
+            s.to_string()
+        }
     };
     let output_path = TEMP_DIR.join(output_name);
 
@@ -21,32 +35,62 @@ pub fn build_xray(commid: &str) -> PackResult<()> {
         .expect("Failed to change working directory");
 
     let mut cmd = Command::new("go");
-    let mut ldflags = String::new();
+    let gcflags: String = match &args.target {
+        CompileTarget::V2ray {
+            compile_options,
+            v2ray_version: _,
+        } => compile_options.gcflags.clone(),
+        CompileTarget::Xray {
+            compile_options,
+            xray_version: _,
+        } => compile_options.gcflags.clone(),
+    };
+    let ldflags: String = match &args.target {
+        CompileTarget::V2ray {
+            compile_options,
+            v2ray_version: _,
+        } => compile_options
+            .ldflags
+            .clone()
+            .unwrap_or("-s -w -buildid=".to_string()),
+        CompileTarget::Xray {
+            compile_options,
+            xray_version: _,
+        } => compile_options.ldflags.clone().unwrap_or_else(|| {
+            format!("-X github.com/xtls/xray-core/core.build={commid} -s -w -buildid=")
+        }),
+    };
+
     let build_args = {
         let mut vec = vec![
             "build",
             "-o",
             output_path.to_str().unwrap(),
             "-trimpath",
-            "-buildvcs=false",
             "-gcflags",
-            &args.compile_options.gcflags,
+            &gcflags,
             "-ldflags",
-            args.compile_options.ldflags.as_deref().unwrap_or_else(|| {
-                ldflags =
-                    format!("-X github.com/xtls/xray-core/core.build={commid} -s -w -buildid=");
-                &ldflags
-            }),
-            "./main",
+            &ldflags,
         ];
         if args.verbose {
             vec.push("-v")
         }
+        match args.target {
+            CompileTarget::V2ray {
+                compile_options: _,
+                v2ray_version: _,
+            } => {}
+            CompileTarget::Xray {
+                compile_options: _,
+                xray_version: _,
+            } => vec.push("-buildvcs=false"),
+        }
+        vec.push("./main");
         vec
     };
 
-    cmd.env("GOOS", &args.compile_options.goos)
-        .env("GOARCH", &args.compile_options.goarch)
+    cmd.env("GOOS", &args.go_target.goos)
+        .env("GOARCH", &args.go_target.goarch)
         .env(
             "CGO_ENABLED",
             std::env::var("CGO_ENABLED").unwrap_or_else(|_| "0".to_string()),

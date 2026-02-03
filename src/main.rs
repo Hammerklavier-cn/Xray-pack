@@ -58,6 +58,8 @@ fn check_prerequisites() -> PackResult<()> {
 fn main() -> PackResult<()> {
     let args = ARGS.get_or_init(cli::Args::parse);
 
+    // Initialize logging.
+    // If `RUST_LOG` is not set, set it to `debug` if verbose is true, otherwise `info`,
     match (std::env::var("RUST_LOG"), args.verbose) {
         (Err(_), true) => unsafe { std::env::set_var("RUST_LOG", "debug") },
         (Err(_), false) => unsafe { std::env::set_var("RUST_LOG", "info") },
@@ -76,9 +78,9 @@ fn main() -> PackResult<()> {
 
     download_geodat(args.download_options.region)?;
 
-    if args.compile_options.goos.to_lowercase() == "windows" {
+    if args.go_target.goos.to_lowercase() == "windows" {
         download_wintun()?;
-        extract_wintun(WinPlatform::from(args.compile_options.goarch.as_str()))?;
+        extract_wintun(WinPlatform::from(args.go_target.goarch.as_str()))?;
     }
 
     package_all()?;

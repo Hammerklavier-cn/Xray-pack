@@ -2,8 +2,6 @@ use git2::{FetchOptions, ProxyOptions, Repository, build::RepoBuilder};
 
 use crate::{ARGS, REPOSITORY_DIR, TEMP_DIR, errors::PackResult};
 
-static XRAY_CORE_REPO: &str = "https://github.com/XTLS/Xray-core.git";
-
 fn get_https_proxy() -> Option<String> {
     if let Ok(proxy) = std::env::var("HTTPS_PROXY") {
         Some(proxy)
@@ -22,12 +20,13 @@ pub fn setup_repository() -> PackResult<String> {
     let args = ARGS.get().unwrap();
     let repo: Repository = if args.path_options.from_source {
         // Clone Xray-core source code (via proxy if available)
-        let dest = TEMP_DIR.join("Xray-core");
+        let dest = TEMP_DIR.join(args.target.to_string());
 
         match get_https_proxy() {
             Some(ref proxy) => {
                 log::debug!(
-                    "Cloning Xray-core repository to {} with proxy {}",
+                    "Cloning {} repository to {} with proxy {}",
+                    args.target,
                     dest.display(),
                     proxy
                 );
@@ -38,16 +37,17 @@ pub fn setup_repository() -> PackResult<String> {
 
                 RepoBuilder::new()
                     .fetch_options(fetch_opts)
-                    .clone(XRAY_CORE_REPO, &dest)?
+                    .clone(args.target.repo_url(), &dest)?
             }
             None => {
-                log::debug!("Cloning Xray-core repository to {}", dest.display());
-                RepoBuilder::new().clone(XRAY_CORE_REPO, &dest)?
+                log::debug!("Cloning {} repository to {}", args.target, dest.display());
+                RepoBuilder::new().clone(args.target.repo_url(), &dest)?
             }
         }
     } else {
         log::debug!(
-            "Open Xray-core-repository at {}",
+            "Open {} repository at {}",
+            args.target,
             &args.path_options.source_path.display()
         );
         Repository::open(&args.path_options.source_path)?
@@ -56,20 +56,29 @@ pub fn setup_repository() -> PackResult<String> {
         .set(repo.path().join("../").to_path_buf())
         .unwrap();
     log::info!(
-        "Xray-core repository locates at {}",
+        "{} repository locates at {}",
+        args.target,
         REPOSITORY_DIR.get().unwrap().display()
     );
 
     // Checkout Xray-core version
-    log::debug!("Checking out Xray-core version {}", args.xray_version);
-    let (object, reference) = repo.revparse_ext(&args.xray_version)?;
+    log::debug!(
+        "Checking out {} version {}",
+        args.target,
+        args.target.repo_version()
+    );
+    let (object, reference) = repo.revparse_ext(&args.target.repo_version())?;
     repo.checkout_tree(&object, None)?;
     if let Some(reference) = reference {
         repo.set_head(reference.name().unwrap())?;
     } else {
         repo.set_head_detached(object.id())?;
     }
-    log::info!("Switch to Xray-core version {}", args.xray_version);
+    log::info!(
+        "Switch to {} version {}",
+        args.target,
+        args.target.repo_version()
+    );
 
     // Get result of (git describe --always --dirty)
     let describe_result = repo
