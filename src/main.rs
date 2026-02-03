@@ -3,8 +3,10 @@ use std::{path::PathBuf, sync::LazyLock};
 
 use clap::Parser;
 
+use crate::cli::CompileTarget;
 use crate::download::geodat::download_geodat;
-use crate::download::wintun::{WinPlatform, download_wintun, extract_wintun};
+use crate::download::v2ray_extra::copy_v2ray_services;
+use crate::download::wintun::{WinPlatform, download_and_extract_wintun};
 use crate::errors::{PackError, PackResult};
 use crate::package::package_all;
 
@@ -77,14 +79,21 @@ fn main() -> PackResult<()> {
 
     let commid = repo::setup_repository()?;
 
-    // Build Xray-core
+    // Build Xray-core or v2ray-core
     compile::build_xray(&commid)?;
 
     download_geodat(args.download_options.region)?;
 
-    if args.go_target.goos.to_lowercase() == "windows" {
-        download_wintun()?;
-        extract_wintun(WinPlatform::from(args.go_target.goarch.as_str()))?;
+    // Download target-specific files
+    match &args.target {
+        CompileTarget::Xray { .. } => {
+            if args.go_target.goos.to_lowercase() == "windows" {
+                download_and_extract_wintun(WinPlatform::from(args.go_target.goarch.as_str()))?;
+            }
+        }
+        CompileTarget::V2ray { .. } => {
+            copy_v2ray_services()?;
+        }
     }
 
     package_all()?;
