@@ -1,7 +1,7 @@
 use std::process::Command;
 
 use crate::{
-    ARGS, REPOSITORY_DIR, TEMP_DIR,
+    ARGS, COLLECTED_FILES, REPOSITORY_DIR, TEMP_DIR,
     cli::{self, CompileTarget},
     errors::{PackError, PackResult},
 };
@@ -113,6 +113,9 @@ pub fn build_xray(commid: &str) -> PackResult<()> {
     }
 
     log::info!("Xray built at {}", output_path.display());
+
+    // Add the compiled binary to the collected files
+    COLLECTED_FILES.lock().unwrap().push(output_path);
 
     // change the working directory back to the original directory
     std::env::set_current_dir(&*cli::ROOT).expect("Failed to change working directory");

@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::{path::PathBuf, sync::LazyLock};
 
 use clap::Parser;
@@ -39,6 +39,10 @@ static TEMP_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 static REPOSITORY_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 static ARGS: OnceLock<cli::Args> = OnceLock::new();
+
+/// A global collection of file paths that have been downloaded or compiled.
+/// These files will be packaged together at the end.
+pub static COLLECTED_FILES: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 
 // check prerequisites
 fn check_prerequisites() -> PackResult<()> {

@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use crate::{ARGS, REPOSITORY_DIR, TEMP_DIR, cli::CompileTarget, errors::PackResult};
+use crate::{
+    ARGS, COLLECTED_FILES, REPOSITORY_DIR, TEMP_DIR, cli::CompileTarget, errors::PackResult,
+};
 
 /// Copy all necessary files to a directory. The path of this directory is returned.
 #[deprecated(note = "Use compress_zip instead.")]
@@ -106,32 +108,10 @@ fn compress_zip() -> PackResult<PathBuf> {
         zip_path.display()
     );
 
-    let mut files = Vec::new();
-    files.push(TEMP_DIR.join({
-        let mut s: String;
-        match args.target {
-            CompileTarget::V2ray {
-                compile_options: _,
-                v2ray_version: _,
-            } => s = String::from("v2ray"),
-            CompileTarget::Xray {
-                compile_options: _,
-                xray_version: _,
-            } => s = String::from("xray"),
-        };
-        if args.go_target.goos == "windows" {
-            s.push_str(".exe");
-        }
-        s
-    }));
+    // Get collected files and add README.md and LICENSE from repo
+    let mut files = COLLECTED_FILES.lock().unwrap().clone();
     files.push(repo_dir.join("README.md"));
     files.push(repo_dir.join("LICENSE"));
-    files.push(TEMP_DIR.join("geoip.dat"));
-    files.push(TEMP_DIR.join("geosite.dat"));
-    if args.go_target.goos == "windows" {
-        files.push(TEMP_DIR.join("wintun.dll"));
-        files.push(TEMP_DIR.join("LICENSE-wintun.txt"));
-    }
 
     for ref file in files {
         log::debug!("Compressing {}", file.display());

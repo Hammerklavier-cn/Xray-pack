@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
-    TEMP_DIR,
+    COLLECTED_FILES, TEMP_DIR,
     download::download_file,
     errors::{PackError, PackResult},
 };
@@ -76,8 +76,16 @@ pub fn extract_wintun(platform: WinPlatform) -> PackResult<()> {
         .map_err(|_| PackError::CreateFailed(extract_path.clone()))?;
 
     std::io::copy(&mut zip_file, &mut writer)
-        .map_err(|_| PackError::CopyFailed(zip_path.clone(), extract_path))?;
+        .map_err(|_| PackError::CopyFailed(zip_path.clone(), extract_path.clone()))?;
 
     log::info!("Extracted wintun dll and LICENSE");
+
+    // Add wintun.dll and LICENSE-wintun.txt to collected files
+    COLLECTED_FILES
+        .lock()
+        .unwrap()
+        .push(TEMP_DIR.join("wintun.dll"));
+    COLLECTED_FILES.lock().unwrap().push(extract_path);
+
     Ok(())
 }
