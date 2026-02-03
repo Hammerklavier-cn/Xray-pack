@@ -83,25 +83,25 @@ CFLAGS="-O3 -march=native" CXXFLAGS="-O3 -march=native" RUSTFLAGS="-C target-cpu
 为 x86_64 CPU 和 Linux 系统启用所有性能特性（若 CPU 支持 AVX512 指令集）：
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./xray-pack.exe xray -s -v --goos linux --goarch amd64
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./xray-pack.exe -s -v --goos linux --goarch amd64 xray
 ```
 
 为主流 x86_64 CPU 和 Windows 系统启用指令集优化（CPU 只支持到 AVX2 指令集）：
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v3" ./xray-pack.exe xray -s -v --goos windows --goarch amd64
+CGO_ENABLED=0 GOAMD64="v3" ./xray-pack.exe -s -v --goos windows --goarch amd64 xray
 ```
 
 为 ARM64 CPU 和 macOS 编译，禁用内联优化：
 
 ```bash
-CGO_ENABLED=0 ./xray-pack.exe xray -s -v --goos darwin --goarch arm64 --gcflags "all:-l"
+CGO_ENABLED=0 ./xray-pack.exe -s -v --goos darwin --goarch arm64 xray --gcflags "all:-l"
 ```
 
 构建指定版本的 V2Ray：
 
 ```bash
-CGO_ENABLED=0 ./xray-pack.exe v2ray -s -v --goos linux --goarch amd64 --v2ray-version v5.18.0
+CGO_ENABLED=0 ./xray-pack.exe -s -v --goos linux --goarch amd64 v2ray --v2ray-version v5.44.1
 ```
 
 ### 输出内容
@@ -123,7 +123,7 @@ v2ray-{version}-{arch}-{system}.zip
 - 编译后的可执行文件（`xray`/`xray.exe` 对应 Xray，`v2ray`/`v2ray.exe` 对应 V2Ray）
 - `geoip.dat` 和 `geosite.dat`
 - `README.md` 和 `LICENSE`
-- （仅 Windows）`wintun.dll` 和 `LICENSE-wintun.txt`
+- （仅 Windows+Xray）`wintun.dll` 和 `LICENSE-wintun.txt`
 
 ## 许可证
 

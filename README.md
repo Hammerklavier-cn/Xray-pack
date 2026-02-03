@@ -83,25 +83,25 @@ Options:
 Enable all features for x86_64 CPU and Linux system (Only use GOAMD=v4 if CPU supports AVX512 instructions):
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./xray-pack.exe xray -s -v --goos linux --goarch amd64
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" -s -v --goos linux --goarch amd64 ./xray-pack.exe xray
 ```
 
 Optimize for most x86_64 CPU (with AVX2 support) and Windows system:
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v3" ./xray-pack.exe xray -s -v --goos windows --goarch amd64
+CGO_ENABLED=0 GOAMD64="v3" ./xray-pack.exe -s -v --goos windows --goarch amd64 xray
 ```
 
 Build for ARM64 MacOS, disabling inlining:
 
 ```bash
-CGO_ENABLED=0 ./xray-pack.exe xray -s -v --goos darwin --goarch arm64 --gcflags "all:-l"
+CGO_ENABLED=0 ./xray-pack.exe -s -v --goos darwin --goarch arm64 xray --gcflags "all:-l"
 ```
 
 Build V2Ray with custom version:
 
 ```bash
-CGO_ENABLED=0 ./xray-pack.exe v2ray -s -v --goos linux --goarch amd64 --v2ray-version v5.18.0
+CGO_ENABLED=0 ./xray-pack.exe -s -v --goos linux --goarch amd64 v2ray --v2ray-version v5.44.1
 ```
 
 ### Output
@@ -123,7 +123,7 @@ and will include:
 - Compiled binary (`xray`/`xray.exe` for Xray, `v2ray`/`v2ray.exe` for V2Ray)
 - `geoip.dat` and `geosite.dat`
 - `README.md` and `LICENSE`
-- (Windows only) `wintun.dll` and `LICENSE-wintun.txt`
+- (Windows and Xray only) `wintun.dll` and `LICENSE-wintun.txt`
 
 ## License
 
