@@ -46,9 +46,35 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Prepare xray-pack
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ${{ steps.upload-artifact.outputs.artifact-name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build xray-pack
+        run: cargo build --release
+
+      - name: Upload xray-pack binary
+        id: upload-artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: xray-pack-binary
+          path: target/release/xray-pack
+          retention-days: 1
+
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goamd64 && '-' }}${{ matrix.goamd64 }}${{ matrix.goarm && '-v' }}${{ matrix.goarm }}
     runs-on: ubuntu-latest
+    needs: prepare
     strategy:
       fail-fast: false
       max-parallel: 10
@@ -111,19 +137,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-
       - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version: "stable"
           cache: false
 
-      - name: Build xray-pack
-        run: cargo build --release
+      - name: Download xray-pack binary
+        uses: actions/download-artifact@v7
+        with:
+          name: xray-pack-binary
+          path: target/release
+
+      - name: Make xray-pack executable
+        run: chmod +x target/release/xray-pack
 
       - name: Build ${{ env.CORE_TYPE }}-core
         shell: bash
