@@ -276,6 +276,21 @@ jobs:
           echo "Files to be released:"
           ls -lh release-files/
 
+      - name: Delete existing release if it exists
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Checking if release exists..."
+          if gh release view "${{ inputs.release_tag }}" > /dev/null 2>&1; then
+            echo "Release exists, deleting..."
+            gh release delete "${{ inputs.release_tag }}" --yes --cleanup-tag
+            echo "Waiting for deletion to complete..."
+            sleep 10
+          else
+            echo "Release does not exist, proceeding..."
+          fi
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -284,7 +299,8 @@ jobs:
           files: release-files/*
           generate_release_notes: true
           draft: false
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
+          make_latest: true
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             ## 🎉 ${{ env.CORE_TYPE }}-core ${{ inputs.xray_version }}
@@ -341,7 +357,8 @@ jobs:
           files: release-files/*
           generate_release_notes: true
           draft: false
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
+          make_latest: true
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             ## 🎉 ${{ env.CORE_TYPE }}-core ${{ inputs.xray_version }}
