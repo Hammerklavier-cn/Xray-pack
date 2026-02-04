@@ -22,49 +22,42 @@ jobs:
           # Linux
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            rust_arch: x86_64
             os_name: linux
             arch_name: amd64
             libc: gnu
             use_cross: false
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            rust_arch: x86_64
             os_name: linux
             arch_name: amd64
             libc: musl
             use_cross: true
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            rust_arch: aarch64
             os_name: linux
             arch_name: arm64
             libc: gnu
             use_cross: true
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            rust_arch: aarch64
             os_name: linux
             arch_name: arm64
             libc: musl
             use_cross: true
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
-            rust_arch: armv7
             os_name: linux
             arch_name: arm
             libc: gnu
             use_cross: true
           - os: ubuntu-latest
             target: armv7-unknown-linux-musleabihf
-            rust_arch: armv7
             os_name: linux
             arch_name: arm
             libc: musl
             use_cross: true
           - os: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
-            rust_arch: riscv64gc
             os_name: linux
             arch_name: riscv64
             libc: gnu
@@ -73,7 +66,6 @@ jobs:
           # macOS
           - os: macos-latest
             target: aarch64-apple-darwin
-            rust_arch: aarch64
             os_name: darwin
             arch_name: arm64
             libc: darwin
@@ -82,14 +74,12 @@ jobs:
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            rust_arch: x86_64
             os_name: windows
             arch_name: amd64
             libc: msvc
             use_cross: false
           - os: ubuntu-latest
             target: x86_64-pc-windows-gnu
-            rust_arch: x86_64
             os_name: windows
             arch_name: amd64
             libc: gnu
@@ -113,25 +103,11 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: bash
         run: |
-          # Download and install Strawberry Perl for Windows
-          # This is required for building openssl-sys with vendored feature on Windows
-          echo "Installing Strawberry Perl for Windows..."
-
-          # Clean up old files and directories if they exist
           rm -f strawberry-perl.zip
           rm -rf C:/strawberry
-
           curl -L -o strawberry-perl.zip https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54201_64bit/strawberry-perl-5.42.0.1-64bit-portable.zip
           7z x strawberry-perl.zip -o"C:/strawberry" -y
-
-          # Add Strawberry Perl to PATH for current and subsequent steps
-          # echo "C:/strawberry/perl/bin" >> $GITHUB_PATH
-          # export PATH="C:/strawberry/perl/bin:$PATH"
-          export PERL="C:/strawberry/perl/bin/perl.exe"
-
-          # Verify the correct Perl is being used
-          echo "Perl version:"
-          $PERL --version | head -n 2
+          echo "PERL=C:/strawberry/perl/bin/perl.exe" >> $GITHUB_ENV
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
@@ -139,27 +115,19 @@ jobs:
           version: "v0.8.1"
 
       - name: Build binary
+        shell: bash
         env:
           RUSTC_WRAPPER: sccache
         run: |
-          # On Windows, verify Perl is available for openssl-sys vendored build
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            echo "Checking Perl installation..."
-            export PERL="C:/strawberry/perl/bin/perl.exe"
-            $PERL --version || echo "Perl not found in PATH"
-          fi
-
           if [ "${{ matrix.use_cross }}" = "true" ]; then
             cross build --release --target ${{ matrix.target }}
           else
             cargo build --release --target ${{ matrix.target }}
           fi
-        shell: bash
 
       - name: Prepare artifacts
         shell: bash
         run: |
-          # Determine binary extension and name
           if [[ "${{ matrix.os_name }}" == "windows" ]]; then
             BINARY="xray-pack.exe"
             EXE_EXT=".exe"
@@ -168,13 +136,9 @@ jobs:
             EXE_EXT=""
           fi
 
-          # Unified artifact name: always include libc suffix
           ARTIFACT_NAME="xray-pack-${{ matrix.os_name }}-${{ matrix.arch_name }}-${{ matrix.libc }}${EXE_EXT}"
-
-          # Copy binary to artifact name
           cp target/${{ matrix.target }}/release/${BINARY} ${ARTIFACT_NAME}
 
-          # Make it executable on Unix-like systems
           if [[ "${{ matrix.os_name }}" != "windows" ]]; then
             chmod +x ${ARTIFACT_NAME}
           fi
@@ -242,7 +206,6 @@ jobs:
             | Linux | armv7 | glibc | xray-pack-linux-arm-gnu |
             | Linux | armv7 | musl | xray-pack-linux-arm-musl |
             | Linux | riscv64 | glibc | xray-pack-linux-riscv64-gnu |
-            | Linux | riscv64 | musl | xray-pack-linux-riscv64-musl |
             | macOS (Apple Silicon) | arm64 | Darwin | xray-pack-darwin-arm64-darwin |
             | Windows | x86_64 | MSVC | xray-pack-windows-amd64-msvc.exe |
             | Windows | x86_64 | GNU | xray-pack-windows-amd64-gnu.exe |
