@@ -2,6 +2,7 @@ name: Feature Request
 about: 为项目提出新功能建议
 title: '[FR] '
 labels: enhancement
+assignees: ''
 
 ---
 
