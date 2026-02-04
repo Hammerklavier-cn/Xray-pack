@@ -193,6 +193,11 @@ jobs:
       - name: Find and prepare artifacts
         shell: bash
         if: always()
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOAMD64: ${{ matrix.goamd64 }}
+          GOARM: ${{ matrix.goarm }}
         run: |
           if [[ "$GOOS" == "windows" ]]; then
             BINARY_NAME="${{ env.CORE_TYPE }}.exe"
@@ -208,15 +213,27 @@ jobs:
             SUFFIX="arm-v${GOARM}-${GOOS}"
           fi
 
-          ARTIFACT_PATTERN="${{ env.CORE_TYPE }}-*-${SUFFIX}.zip"
+          # Build expected artifact name
+          VERSION="${{ inputs.xray_version || 'main' }}"
+          EXPECTED_ARTIFACT_NAME="${{ env.CORE_TYPE }}-${VERSION}-${SUFFIX}.zip"
 
-          echo "Searching for artifacts matching: $ARTIFACT_PATTERN"
+          echo "Expected artifact name: $EXPECTED_ARTIFACT_NAME"
 
-          # Find the artifact
+          # Find and rename the artifact
           for file in dist/*.zip; do
             if [[ -f "$file" ]]; then
               ARTIFACT_NAME=$(basename "$file")
               echo "Found artifact: $ARTIFACT_NAME"
+
+              # Rename the artifact to include the correct suffix
+              if [[ "$ARTIFACT_NAME" != "$EXPECTED_ARTIFACT_NAME" ]]; then
+                NEW_PATH="dist/$EXPECTED_ARTIFACT_NAME"
+                echo "Renaming to: $EXPECTED_ARTIFACT_NAME"
+                mv "$file" "$NEW_PATH"
+                ARTIFACT_NAME="$EXPECTED_ARTIFACT_NAME"
+                file="$NEW_PATH"
+              fi
+
               echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
               echo "ARTIFACT_PATH=$file" >> $GITHUB_ENV
               break
