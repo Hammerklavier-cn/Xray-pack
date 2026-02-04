@@ -1,4 +1,4 @@
-name: Build Xray-core
+name: Build Xray/v2ray @v1
 
 on:
   workflow_dispatch:
