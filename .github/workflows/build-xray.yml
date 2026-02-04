@@ -1,0 +1,307 @@
+name: Build Xray-core
+
+on:
+  workflow_dispatch:
+    inputs:
+      xray_version:
+        description: "Xray-core/v2ray-core version (tag or branch, e.g., v1.8.0 or main)"
+        required: false
+        default: "main"
+        type: string
+      core_type:
+        description: "Core type to build"
+        required: false
+        default: "xray"
+        type: choice
+        options:
+          - xray
+          - v2ray
+      region:
+        description: "Region for geo files"
+        required: false
+        default: "china-mainland"
+        type: choice
+        options:
+          - china-mainland
+          - russia
+          - iran
+      create_release:
+        description: "Create a GitHub release with the artifacts"
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: "Release tag (required if create_release is true)"
+        required: false
+        default: ""
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  CGO_ENABLED: 0
+  CORE_TYPE: ${{ inputs.core_type }}
+  GOEXPERIMENT: "jsonv2,greenteagc,newinliner"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goamd64 && '-' }}${{ matrix.goamd64 }}${{ matrix.goarm && '-v' }}${{ matrix.goarm }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        include:
+          # Linux AMD64 with GOAMD64 levels
+          - goos: linux
+            goarch: amd64
+            goamd64: v2
+          - goos: linux
+            goarch: amd64
+            goamd64: v3
+          - goos: linux
+            goarch: amd64
+            goamd64: v4
+
+          # Linux ARM64
+          - goos: linux
+            goarch: arm64
+
+          # Linux ARM with GOARM versions
+          - goos: linux
+            goarch: arm
+            goarm: 5
+          - goos: linux
+            goarch: arm
+            goarm: 6
+          - goos: linux
+            goarch: arm
+            goarm: 7
+
+          # Linux RISC-V64
+          - goos: linux
+            goarch: riscv64
+
+          # macOS AMD64 with GOAMD64 levels
+          - goos: darwin
+            goarch: amd64
+            goamd64: v2
+          - goos: darwin
+            goarch: amd64
+            goamd64: v3
+
+          # macOS ARM64
+          - goos: darwin
+            goarch: arm64
+
+          # Windows AMD64 with GOAMD64 levels
+          - goos: windows
+            goarch: amd64
+            goamd64: v2
+          - goos: windows
+            goarch: amd64
+            goamd64: v3
+          - goos: windows
+            goarch: amd64
+            goamd64: v4
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          cache: false
+
+      - name: Build xray-pack
+        run: cargo build --release
+
+      - name: Build ${{ env.CORE_TYPE }}-core
+        shell: bash
+        env:
+          XRAY_PACK_VERSION: ${{ inputs.xray_version }}
+          REGION: ${{ inputs.region }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOAMD64: ${{ matrix.goamd64 }}
+          GOARM: ${{ matrix.goarm }}
+        run: |
+          echo "Building ${{ env.CORE_TYPE }}-core version: $XRAY_PACK_VERSION"
+          echo "Platform: $GOOS-$GOARCH"
+          [[ -n "$GOAMD64" ]] && echo "GOAMD64: $GOAMD64"
+          [[ -n "$GOARM" ]] && echo "GOARM: $GOARM"
+          echo "Region: $REGION"
+          echo "GOEXPERIMENT: $GOEXPERIMENT"
+
+          VERSION_FLAG="--${{ env.CORE_TYPE }}-version"
+
+          PACK_BINARY="./target/release/xray-pack"
+
+          # Build command with all environment variables
+          export GOEXPERIMENT
+          [[ -n "$GOAMD64" ]] && export GOAMD64
+          [[ -n "$GOARM" ]] && export GOARM
+
+          "$PACK_BINARY" \
+            -s \
+            -v \
+            --goos "$GOOS" \
+            --goarch "$GOARCH" \
+            --region "$REGION" \
+            ${{ env.CORE_TYPE }} \
+            "$VERSION_FLAG"="$XRAY_PACK_VERSION"
+
+      - name: Find and prepare artifacts
+        shell: bash
+        if: always()
+        run: |
+          if [[ "$GOOS" == "windows" ]]; then
+            BINARY_NAME="${{ env.CORE_TYPE }}.exe"
+          else
+            BINARY_NAME="${{ env.CORE_TYPE }}"
+          fi
+
+          # Build artifact name suffix
+          SUFFIX="${GOARCH}-${GOOS}"
+          if [[ -n "$GOAMD64" ]]; then
+            SUFFIX="amd64-${GOAMD64}-${GOOS}"
+          elif [[ -n "$GOARM" ]]; then
+            SUFFIX="arm-v${GOARM}-${GOOS}"
+          fi
+
+          ARTIFACT_PATTERN="${{ env.CORE_TYPE }}-*-${SUFFIX}.zip"
+
+          echo "Searching for artifacts matching: $ARTIFACT_PATTERN"
+
+          # Find the artifact
+          for file in dist/*.zip; do
+            if [[ -f "$file" ]]; then
+              ARTIFACT_NAME=$(basename "$file")
+              echo "Found artifact: $ARTIFACT_NAME"
+              echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
+              echo "ARTIFACT_PATH=$file" >> $GITHUB_ENV
+              break
+            fi
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        if: always() && env.ARTIFACT_NAME != ''
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACT_PATH }}
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: inputs.create_release == true && inputs.release_tag != ''
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: Release ${{ inputs.release_tag }}
+          files: artifacts/*/*
+          generate_release_notes: true
+          draft: false
+          body: |
+            ## 🎉 ${{ env.CORE_TYPE }}-core ${{ inputs.xray_version }}
+
+            ### 📦 下载 / Downloads
+
+            这是手动触发的构建版本。
+            This is a manually triggered build.
+
+            **版本 / Version**: ${{ inputs.xray_version }}
+            **地区 / Region**: ${{ inputs.region }}
+            **GOEXPERIMENT**: ${{ env.GOEXPERIMENT }}
+
+            | OS | Architecture | CPU Features | Download |
+            |---|---|---|---|
+            | Linux | amd64-v2 | SSE4.2, POPCNT | ${{ env.CORE_TYPE }}-*-amd64-v2-linux.zip |
+            | Linux | amd64-v3 | AVX, AVX2 | ${{ env.CORE_TYPE }}-*-amd64-v3-linux.zip |
+            | Linux | amd64-v4 | AVX512 | ${{ env.CORE_TYPE }}-*-amd64-v4-linux.zip |
+            | Linux | arm64 | ARMv8-A | ${{ env.CORE_TYPE }}-*-arm64-linux.zip |
+            | Linux | arm-v5 | ARMv5 | ${{ env.CORE_TYPE }}-*-arm-v5-linux.zip |
+            | Linux | arm-v6 | ARMv6, VFPv1 | ${{ env.CORE_TYPE }}-*-arm-v6-linux.zip |
+            | Linux | arm-v7 | ARMv7, VFPv3 | ${{ env.CORE_TYPE }}-*-arm-v7-linux.zip |
+            | Linux | riscv64 | RV64GC | ${{ env.CORE_TYPE }}-*-riscv64-linux.zip |
+            | macOS (Intel) | amd64-v2 | SSE4.2, POPCNT | ${{ env.CORE_TYPE }}-*-amd64-v2-darwin.zip |
+            | macOS (Intel) | amd64-v3 | AVX, AVX2 | ${{ env.CORE_TYPE }}-*-amd64-v3-darwin.zip |
+            | macOS (Apple Silicon) | arm64 | ARMv8-A | ${{ env.CORE_TYPE }}-*-arm64-darwin.zip |
+            | Windows | amd64-v2 | SSE4.2, POPCNT | ${{ env.CORE_TYPE }}-*-amd64-v2-windows.zip |
+            | Windows | amd64-v3 | AVX, AVX2 | ${{ env.CORE_TYPE }}-*-amd64-v3-windows.zip |
+            | Windows | amd64-v4 | AVX512 | ${{ env.CORE_TYPE }}-*-amd64-v4-windows.zip |
+
+            ### 📝 包含内容 / Contents
+
+            - ${{ env.CORE_TYPE }}-core 二进制文件 / binary
+            - geoip.dat 和 geosite.dat (地区: ${{ inputs.region }})
+            - README.md 和 LICENSE
+            - (Windows 和 Xray) wintun.dll 和 LICENSE-wintun.txt
+
+            ### ⚙️ 构建参数 / Build Parameters
+
+            - Core 类型: ${{ env.CORE_TYPE }}
+            - 版本: ${{ inputs.xray_version }}
+            - 地区: ${{ inputs.region }}
+            - GOEXPERIMENT: ${{ env.GOEXPERIMENT }}
+            - 触发时间: ${{ github.event.head_commit.timestamp }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    name: Notify Completion
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Build Summary
+        run: |
+          echo "## 🎉 构建完成 / Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 构建信息 / Build Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Core 类型**: \`${{ env.CORE_TYPE }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **版本**: \`${{ inputs.xray_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **地区**: \`${{ inputs.region }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **GOEXPERIMENT**: \`${{ env.GOEXPERIMENT }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **触发时间**: \`${{ github.event.head_commit.timestamp }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 CPU 优化说明 / CPU Optimization Notes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**AMD64 (x86_64) 架构**:" >> $GITHUB_STEP_SUMMARY
+          echo "- **v2**: 适用于支持 SSE4.2 和 POPCNT 指令的 CPU（2010年及以后的 Intel/AMD CPU）" >> $GITHUB_STEP_SUMMARY
+          echo "- **v3**: 适用于支持 AVX 和 AVX2 指令的 CPU（2015年及以后的 Intel Haswell，AMD Ryzen）" >> $GITHUB_STEP_SUMMARY
+          echo "- **v4**: 适用于支持 AVX512 指令的 CPU（2017年及以后的 Intel Skylake-X，部分 AMD EPYC）" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**ARM (32位) 架构**:" >> $GITHUB_STEP_SUMMARY
+          echo "- **v5**: 适用于 ARMv5 处理器（软浮点）" >> $GITHUB_STEP_SUMMARY
+          echo "- **v6**: 适用于 ARMv6 处理器（VFPv1 硬件浮点）" >> $GITHUB_STEP_SUMMARY
+          echo "- **v7**: 适用于 ARMv7 处理器（VFPv3，常见于大多数 ARM 设备）" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [查看运行详情 / View Run Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
