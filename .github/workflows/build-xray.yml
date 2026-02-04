@@ -35,11 +35,14 @@ on:
         required: false
         default: ""
         type: string
+  push:
+    branches:
+      - gh-workflow
 
 env:
   CARGO_TERM_COLOR: always
   CGO_ENABLED: 0
-  CORE_TYPE: ${{ inputs.core_type }}
+  CORE_TYPE: ${{ inputs.core_type || 'xray' }}
   GOEXPERIMENT: "jsonv2,greenteagc,newinliner"
 
 permissions:
@@ -155,8 +158,8 @@ jobs:
       - name: Build ${{ env.CORE_TYPE }}-core
         shell: bash
         env:
-          XRAY_PACK_VERSION: ${{ inputs.xray_version }}
-          REGION: ${{ inputs.region }}
+          XRAY_PACK_VERSION: ${{ inputs.xray_version || 'main' }}
+          REGION: ${{ inputs.region || 'china-mainland' }}
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GOAMD64: ${{ matrix.goamd64 }}
