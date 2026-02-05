@@ -376,6 +376,16 @@ jobs:
           cat SHA256SUMS
           echo "::endgroup::"
 
+      - name: Set timestamp
+        id: set_timestamp
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.head_commit.timestamp }}" ]; then
+            echo "timestamp=${{ github.event.head_commit.timestamp }}" >> $GITHUB_OUTPUT
+          else
+            echo "timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
+          fi
+
       - name: Determine release tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -438,9 +448,6 @@ jobs:
           body: |
             ## 🎉 ${{ env.CORE_TYPE }}-core ${{ inputs.xray_version }} Bundle
 
-            **⚠️ 注意: 这是一个预发布版本 (Pre-release)**
-            **⚠️ Note: This is a pre-release**
-
             这是使用 xray-pack 打包的 ${{ env.CORE_TYPE }}-core 预编译二进制文件，**不是 xray-pack 程序本身的发布**。
             This is a pre-packaged ${{ env.CORE_TYPE }}-core binary bundle using xray-pack, **not the xray-pack program itself**.
 
@@ -500,7 +507,7 @@ jobs:
             - 版本: ${{ inputs.xray_version }}
             - 地区: ${{ inputs.region }}
             - GOEXPERIMENT: ${{ env.GOEXPERIMENT }}
-            - 触发时间: ${{ github.event.head_commit.timestamp }}
+            - 触发时间: ${{ steps.set_timestamp.outputs.timestamp }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -533,6 +540,13 @@ jobs:
             echo "RELEASE_EMOJI=❌" >> $GITHUB_ENV
           fi
 
+          # Set timestamp - use head_commit timestamp for push events, or current time for workflow_dispatch
+          if [ -n "${{ github.event.head_commit.timestamp }}" ]; then
+            echo "TIMESTAMP=${{ github.event.head_commit.timestamp }}" >> $GITHUB_ENV
+          else
+            echo "TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+          fi
+
       - name: Build Summary
         run: |
           echo "## 🎉 构建完成 / Build Complete" >> $GITHUB_STEP_SUMMARY
@@ -546,7 +560,7 @@ jobs:
           echo "- **版本**: \`${{ inputs.xray_version || 'main' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **地区**: \`${{ inputs.region || 'china-mainland' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **GOEXPERIMENT**: \`${{ env.GOEXPERIMENT }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **触发时间**: \`${{ github.event.head_commit.timestamp }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **触发时间**: \`${{ env.TIMESTAMP }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 CPU 优化说明 / CPU Optimization Notes" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
