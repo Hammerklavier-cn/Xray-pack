@@ -31,7 +31,7 @@ on:
         default: false
         type: boolean
       release_tag:
-        description: "Release tag (required if create_release is true)"
+        description: "Release tag (optional, auto-generated if empty: <CORE_TYPE>-latest-<REGION>)"
         required: false
         default: ""
         type: string
@@ -252,13 +252,16 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
-    if: inputs.create_release == true && inputs.release_tag != ''
+    if: inputs.create_release == true
     permissions:
       contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v7
@@ -276,15 +279,38 @@ jobs:
           echo "Files to be released:"
           ls -lh release-files/
 
+      - name: Create or update tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if user provided a custom release_tag
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG_NAME="${{ inputs.release_tag }}"
+            echo "Using user-provided tag: $TAG_NAME"
+          else
+            TAG_NAME="${{ env.CORE_TYPE }}-latest-${{ inputs.region }}"
+            echo "Using auto-generated tag: $TAG_NAME"
+          fi
+
+          # Get the current commit SHA
+          CURRENT_SHA=$(git rev-parse HEAD)
+
+          # Create or update the tag (use --force to update if it exists)
+          git tag -f "$TAG_NAME" "$CURRENT_SHA"
+          git push origin "$TAG_NAME" --force
+
+          echo "Tag $TAG_NAME created/updated at commit $CURRENT_SHA"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+
       - name: Delete existing release if it exists
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Checking if release exists..."
-          if gh release view "${{ inputs.release_tag }}" > /dev/null 2>&1; then
+          echo "Checking if release exists for tag: ${{ env.TAG_NAME }}"
+          if gh release view "${{ env.TAG_NAME }}" > /dev/null 2>&1; then
             echo "Release exists, deleting..."
-            gh release delete "${{ inputs.release_tag }}" --yes --cleanup-tag
+            gh release delete "${{ env.TAG_NAME }}" --yes --cleanup-tag
             echo "Waiting for deletion to complete..."
             sleep 10
           else
@@ -294,8 +320,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag }}
-          name: Release ${{ inputs.release_tag }}
+          tag_name: ${{ env.TAG_NAME }}
+          name: Release ${{ env.TAG_NAME }}
           files: release-files/*
           generate_release_notes: true
           draft: false
@@ -352,8 +378,8 @@ jobs:
         if: failure()
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag }}
-          name: Release ${{ inputs.release_tag }}
+          tag_name: ${{ env.TAG_NAME }}
+          name: Release ${{ env.TAG_NAME }}
           files: release-files/*
           generate_release_notes: true
           draft: false
