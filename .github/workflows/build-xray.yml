@@ -52,6 +52,7 @@ jobs:
   prepare:
     name: Prepare xray-pack
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       artifact-name: ${{ steps.upload-artifact.outputs.artifact-name }}
     steps:
@@ -62,9 +63,23 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+          cache: true
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       - name: Build xray-pack
-        run: cargo build --release
+        run: |
+          echo "::group::Building xray-pack"
+          cargo build --release --verbose
+          echo "::endgroup::"
+
+          echo "::group::Verify binary"
+          ls -lh target/release/xray-pack
+          file target/release/xray-pack
+          echo "::endgroup::"
 
       - name: Upload xray-pack binary
         id: upload-artifact
@@ -73,14 +88,16 @@ jobs:
           name: xray-pack-binary
           path: target/release/xray-pack
           retention-days: 1
+          if-no-files-found: error
 
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goamd64 && '-' }}${{ matrix.goamd64 }}${{ matrix.goarm && '-v' }}${{ matrix.goarm }}
     runs-on: ubuntu-latest
     needs: prepare
+    timeout-minutes: 45
     strategy:
       fail-fast: false
-      max-parallel: 10
+      max-parallel: 6
       matrix:
         include:
           # Linux AMD64 with GOAMD64 levels
@@ -144,7 +161,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "stable"
-          cache: false
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
+            **/go.mod
 
       - name: Download xray-pack binary
         uses: actions/download-artifact@v7
@@ -153,7 +173,9 @@ jobs:
           path: target/release
 
       - name: Make xray-pack executable
-        run: chmod +x target/release/xray-pack
+        run: |
+          chmod +x target/release/xray-pack
+          ./target/release/xray-pack --version || echo "Version check skipped"
 
       - name: Build ${{ env.CORE_TYPE }}-core
         shell: bash
@@ -165,15 +187,23 @@ jobs:
           GOAMD64: ${{ matrix.goamd64 }}
           GOARM: ${{ matrix.goarm }}
         run: |
+          set -euo pipefail
+
+          echo "::group::Build Configuration"
           echo "Building ${{ env.CORE_TYPE }}-core version: $XRAY_PACK_VERSION"
           echo "Platform: $GOOS-$GOARCH"
           [[ -n "$GOAMD64" ]] && echo "GOAMD64: $GOAMD64"
           [[ -n "$GOARM" ]] && echo "GOARM: $GOARM"
           echo "Region: $REGION"
           echo "GOEXPERIMENT: $GOEXPERIMENT"
+          echo "::endgroup::"
+
+          echo "::group::Go Environment"
+          go version
+          go env | grep -E "GOOS|GOARCH|GOROOT|GOPATH|GOCACHE"
+          echo "::endgroup::"
 
           VERSION_FLAG="--${{ env.CORE_TYPE }}-version"
-
           PACK_BINARY="./target/release/xray-pack"
 
           # Build command with all environment variables
@@ -181,6 +211,7 @@ jobs:
           [[ -n "$GOAMD64" ]] && export GOAMD64
           [[ -n "$GOARM" ]] && export GOARM
 
+          echo "::group::Building ${{ env.CORE_TYPE }}-core"
           "$PACK_BINARY" \
             -s \
             -v \
@@ -189,16 +220,19 @@ jobs:
             --region "$REGION" \
             ${{ env.CORE_TYPE }} \
             "$VERSION_FLAG"="$XRAY_PACK_VERSION"
+          echo "::endgroup::"
 
       - name: Find and prepare artifacts
         shell: bash
-        if: always()
+        if: success()
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           GOAMD64: ${{ matrix.goamd64 }}
           GOARM: ${{ matrix.goarm }}
         run: |
+          set -euo pipefail
+
           if [[ "$GOOS" == "windows" ]]; then
             BINARY_NAME="${{ env.CORE_TYPE }}.exe"
           else
@@ -220,6 +254,7 @@ jobs:
           echo "Expected artifact name: $EXPECTED_ARTIFACT_NAME"
 
           # Find and rename the artifact
+          FOUND=false
           for file in dist/*.zip; do
             if [[ -f "$file" ]]; then
               ARTIFACT_NAME=$(basename "$file")
@@ -236,22 +271,35 @@ jobs:
 
               echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
               echo "ARTIFACT_PATH=$file" >> $GITHUB_ENV
+              FOUND=true
               break
             fi
           done
 
+          if [[ "$FOUND" == "false" ]]; then
+            echo "::error::No artifact found in dist/"
+            ls -la dist/ || echo "dist/ directory not found"
+            exit 1
+          fi
+
+          echo "Final artifact: $ARTIFACT_NAME at $file"
+          ls -lh "$file"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v6
-        if: always() && env.ARTIFACT_NAME != ''
+        if: success()
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ env.ARTIFACT_PATH }}
           retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
 
   release:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: inputs.create_release == true
     permissions:
       contents: write
@@ -267,19 +315,38 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           path: artifacts
+          pattern: "${{ env.CORE_TYPE }}-*"
 
       - name: Display structure of downloaded files
-        run: ls -R artifacts
+        run: |
+          echo "::group::Artifact Structure"
+          ls -R artifacts
+          echo "::endgroup::"
 
       - name: Prepare release files
         run: |
           mkdir -p release-files
           # Copy only zip files to release directory, excluding xray-pack binary
           find artifacts -name "*.zip" -type f -exec cp {} release-files/ \;
-          echo "Files to be released:"
-          ls -lh release-files/
 
-      - name: Create or update tag
+          if [ -z "$(ls -A release-files/)" ]; then
+            echo "::error::No zip files found in artifacts"
+            exit 1
+          fi
+
+          echo "::group::Files to be released"
+          ls -lh release-files/
+          echo "::endgroup::"
+
+      - name: Generate checksums
+        run: |
+          cd release-files
+          sha256sum *.zip > SHA256SUMS
+          echo "::group::SHA256 Checksums"
+          cat SHA256SUMS
+          echo "::endgroup::"
+
+      - name: Determine release tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -292,15 +359,22 @@ jobs:
             echo "Using auto-generated tag: $TAG_NAME"
           fi
 
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "Release tag: $TAG_NAME"
+
+      - name: Create or update tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
           # Get the current commit SHA
           CURRENT_SHA=$(git rev-parse HEAD)
+          echo "Current commit: $CURRENT_SHA"
 
           # Create or update the tag (use --force to update if it exists)
-          git tag -f "$TAG_NAME" "$CURRENT_SHA"
-          git push origin "$TAG_NAME" --force
+          git tag -f "${{ env.TAG_NAME }}" "$CURRENT_SHA"
+          git push origin "${{ env.TAG_NAME }}" --force
 
-          echo "Tag $TAG_NAME created/updated at commit $CURRENT_SHA"
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "Tag ${{ env.TAG_NAME }} created/updated at commit $CURRENT_SHA"
 
       - name: Delete existing release if it exists
         continue-on-error: true
@@ -322,11 +396,13 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           name: ${{ env.CORE_TYPE }}-core Bundle - ${{ env.TAG_NAME }} (Pre-release)
-          files: release-files/*
+          files: |
+            release-files/*.zip
+            release-files/SHA256SUMS
           generate_release_notes: true
           draft: false
           prerelease: true
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
           make_latest: false
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
@@ -346,6 +422,12 @@ jobs:
             **版本 / Version**: ${{ inputs.xray_version }}
             **地区 / Region**: ${{ inputs.region }}
             **GOEXPERIMENT**: ${{ env.GOEXPERIMENT }}
+
+            #### 📋 文件校验 / File Verification
+            下载后请使用 `SHA256SUMS` 文件验证文件完整性：
+            ```bash
+            sha256sum -c SHA256SUMS
+            ```
 
             | OS | Architecture | CPU Features | Download |
             |---|---|---|---|
@@ -393,14 +475,41 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
+      - name: Check build status
+        id: check_status
+        run: |
+          BUILD_STATUS="${{ needs.build.result }}"
+          RELEASE_STATUS="${{ needs.release.result }}"
+
+          echo "BUILD_STATUS=$BUILD_STATUS" >> $GITHUB_ENV
+          echo "RELEASE_STATUS=$RELEASE_STATUS" >> $GITHUB_ENV
+
+          if [[ "$BUILD_STATUS" == "success" ]]; then
+            echo "BUILD_EMOJI=✅" >> $GITHUB_ENV
+          else
+            echo "BUILD_EMOJI=❌" >> $GITHUB_ENV
+          fi
+
+          if [[ "$RELEASE_STATUS" == "success" ]]; then
+            echo "RELEASE_EMOJI=✅" >> $GITHUB_ENV
+          elif [[ "$RELEASE_STATUS" == "skipped" ]]; then
+            echo "RELEASE_EMOJI=⏭️" >> $GITHUB_ENV
+          else
+            echo "RELEASE_EMOJI=❌" >> $GITHUB_ENV
+          fi
+
       - name: Build Summary
         run: |
           echo "## 🎉 构建完成 / Build Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 构建状态 / Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **构建 / Build**: ${{ env.BUILD_EMOJI }} \`${{ env.BUILD_STATUS }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **发布 / Release**: ${{ env.RELEASE_EMOJI }} \`${{ env.RELEASE_STATUS }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 构建信息 / Build Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Core 类型**: \`${{ env.CORE_TYPE }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **版本**: \`${{ inputs.xray_version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **地区**: \`${{ inputs.region }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **版本**: \`${{ inputs.xray_version || 'main' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **地区**: \`${{ inputs.region || 'china-mainland' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **GOEXPERIMENT**: \`${{ env.GOEXPERIMENT }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **触发时间**: \`${{ github.event.head_commit.timestamp }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
