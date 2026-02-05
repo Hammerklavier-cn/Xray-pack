@@ -321,15 +321,22 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          name: Release ${{ env.TAG_NAME }}
+          name: ${{ env.CORE_TYPE }}-core Bundle - ${{ env.TAG_NAME }} (Pre-release)
           files: release-files/*
           generate_release_notes: true
           draft: false
+          prerelease: true
           fail_on_unmatched_files: false
-          make_latest: true
+          make_latest: false
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
-            ## 🎉 ${{ env.CORE_TYPE }}-core ${{ inputs.xray_version }}
+            ## 🎉 ${{ env.CORE_TYPE }}-core ${{ inputs.xray_version }} Bundle
+
+            **⚠️ 注意: 这是一个预发布版本 (Pre-release)**
+            **⚠️ Note: This is a pre-release**
+
+            这是使用 xray-pack 打包的 ${{ env.CORE_TYPE }}-core 预编译二进制文件，**不是 xray-pack 程序本身的发布**。
+            This is a pre-packaged ${{ env.CORE_TYPE }}-core binary bundle using xray-pack, **not the xray-pack program itself**.
 
             ### 📦 下载 / Downloads
 
@@ -359,10 +366,16 @@ jobs:
 
             ### 📝 包含内容 / Contents
 
+            本发布包使用 [xray-pack](https://github.com/${{ github.repository }}) 工具打包。
+            This release is bundled using [xray-pack](https://github.com/${{ github.repository }}) tool.
+
             - ${{ env.CORE_TYPE }}-core 二进制文件 / binary
             - geoip.dat 和 geosite.dat (地区: ${{ inputs.region }})
             - README.md 和 LICENSE
             - (Windows 和 Xray) wintun.dll 和 LICENSE-wintun.txt
+
+            💡 如需获取 xray-pack 程序本身，请前往 [xray-pack Releases](https://github.com/${{ github.repository }}/releases)
+            💡 To get the xray-pack program itself, please visit [xray-pack Releases](https://github.com/${{ github.repository }}/releases)
 
             ### ⚙️ 构建参数 / Build Parameters
 
