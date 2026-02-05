@@ -140,6 +140,9 @@ jobs:
           - goos: linux
             goarch: riscv64
             goriscv64: rva22u64
+          - goos: linux
+            goarch: riscv64
+            goriscv64: rva23u64
 
           # macOS AMD64 with GOAMD64 levels
           - goos: darwin
@@ -469,6 +472,7 @@ jobs:
             | Linux | arm-v7 | ARMv7, VFPv3 | ${{ env.CORE_TYPE }}-*-arm-v7-linux.zip |
             | Linux | riscv64-rva20u64 | RVA20U64 (RV64GC) | ${{ env.CORE_TYPE }}-*-riscv64-rva20u64-linux.zip |
             | Linux | riscv64-rva22u64 | RVA22U64 | ${{ env.CORE_TYPE }}-*-riscv64-rva22u64-linux.zip |
+            | Linux | riscv64-rva23u64 | RVA23U64 | ${{ env.CORE_TYPE }}-*-riscv64-rva23u64-linux.zip |
             | macOS (Intel) | amd64-v2 | SSE4.2, POPCNT | ${{ env.CORE_TYPE }}-*-amd64-v2-darwin.zip |
             | macOS (Intel) | amd64-v3 | AVX, AVX2 | ${{ env.CORE_TYPE }}-*-amd64-v3-darwin.zip |
             | macOS (Apple Silicon) | arm64-v8.0 | ARMv8.0-A | ${{ env.CORE_TYPE }}-*-arm64-v8.0-darwin.zip |
