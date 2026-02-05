@@ -374,64 +374,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Retry Release on Failure
-        if: failure()
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          name: Release ${{ env.TAG_NAME }}
-          files: release-files/*
-          generate_release_notes: true
-          draft: false
-          fail_on_unmatched_files: false
-          make_latest: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-            ## 🎉 ${{ env.CORE_TYPE }}-core ${{ inputs.xray_version }}
-
-            ### 📦 下载 / Downloads
-
-            这是手动触发的构建版本。
-            This is a manually triggered build.
-
-            **版本 / Version**: ${{ inputs.xray_version }}
-            **地区 / Region**: ${{ inputs.region }}
-            **GOEXPERIMENT**: ${{ env.GOEXPERIMENT }}
-
-            | OS | Architecture | CPU Features | Download |
-            |---|---|---|---|
-            | Linux | amd64-v2 | SSE4.2, POPCNT | ${{ env.CORE_TYPE }}-*-amd64-v2-linux.zip |
-            | Linux | amd64-v3 | AVX, AVX2 | ${{ env.CORE_TYPE }}-*-amd64-v3-linux.zip |
-            | Linux | amd64-v4 | AVX512 | ${{ env.CORE_TYPE }}-*-amd64-v4-linux.zip |
-            | Linux | arm64 | ARMv8-A | ${{ env.CORE_TYPE }}-*-arm64-linux.zip |
-            | Linux | arm-v5 | ARMv5 | ${{ env.CORE_TYPE }}-*-arm-v5-linux.zip |
-            | Linux | arm-v6 | ARMv6, VFPv1 | ${{ env.CORE_TYPE }}-*-arm-v6-linux.zip |
-            | Linux | arm-v7 | ARMv7, VFPv3 | ${{ env.CORE_TYPE }}-*-arm-v7-linux.zip |
-            | Linux | riscv64 | RV64GC | ${{ env.CORE_TYPE }}-*-riscv64-linux.zip |
-            | macOS (Intel) | amd64-v2 | SSE4.2, POPCNT | ${{ env.CORE_TYPE }}-*-amd64-v2-darwin.zip |
-            | macOS (Intel) | amd64-v3 | AVX, AVX2 | ${{ env.CORE_TYPE }}-*-amd64-v3-darwin.zip |
-            | macOS (Apple Silicon) | arm64 | ARMv8-A | ${{ env.CORE_TYPE }}-*-arm64-darwin.zip |
-            | Windows | amd64-v2 | SSE4.2, POPCNT | ${{ env.CORE_TYPE }}-*-amd64-v2-windows.zip |
-            | Windows | amd64-v3 | AVX, AVX2 | ${{ env.CORE_TYPE }}-*-amd64-v3-windows.zip |
-            | Windows | amd64-v4 | AVX512 | ${{ env.CORE_TYPE }}-*-amd64-v4-windows.zip |
-
-            ### 📝 包含内容 / Contents
-
-            - ${{ env.CORE_TYPE }}-core 二进制文件 / binary
-            - geoip.dat 和 geosite.dat (地区: ${{ inputs.region }})
-            - README.md 和 LICENSE
-            - (Windows 和 Xray) wintun.dll 和 LICENSE-wintun.txt
-
-            ### ⚙️ 构建参数 / Build Parameters
-
-            - Core 类型: ${{ env.CORE_TYPE }}
-            - 版本: ${{ inputs.xray_version }}
-            - 地区: ${{ inputs.region }}
-            - GOEXPERIMENT: ${{ env.GOEXPERIMENT }}
-            - 触发时间: ${{ github.event.head_commit.timestamp }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   notify:
     name: Notify Completion
     needs: [build, release]
