@@ -28,7 +28,7 @@ which = "=8.0.0"
 zip = "=7.4.0"
 
 [target.'cfg(not(target_os = "darwin"))'.dependencies]
-git2 = { version = "=0.20.3", features = ["vendored-libgit2", "vendored-openssl"] }
+git2 = { version = "=0.20.4", features = ["vendored-libgit2", "vendored-openssl"] }
 openssl-sys = { version = "=0.9.111", features = ["vendored"] }
 
 [target.'cfg(target_os = "darwin")'.dependencies]
