@@ -43,7 +43,7 @@ env:
   CARGO_TERM_COLOR: always
   CGO_ENABLED: 0
   CORE_TYPE: ${{ inputs.core_type || 'xray' }}
-  GOEXPERIMENT: "jsonv2,greenteagc,newinliner"
+  GOEXPERIMENT: "jsonv2,newinliner"
 
 permissions:
   contents: write
