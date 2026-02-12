@@ -39,6 +39,11 @@ on:
     branches:
       - gh-workflow
 
+# Cancel in-progress runs for the same branch/workflow
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   CGO_ENABLED: 0
@@ -52,9 +57,7 @@ jobs:
   prepare:
     name: Prepare xray-pack
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    outputs:
-      artifact-name: ${{ steps.upload-artifact.outputs.artifact-name }}
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -82,13 +85,13 @@ jobs:
           echo "::endgroup::"
 
       - name: Upload xray-pack binary
-        id: upload-artifact
         uses: actions/upload-artifact@v6
         with:
           name: xray-pack-binary
           path: target/release/xray-pack
           retention-days: 1
           if-no-files-found: error
+          compression-level: 9
 
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goamd64 && '-' }}${{ matrix.goamd64 }}${{ matrix.goarm && '-v' }}${{ matrix.goarm }}${{ matrix.goarm64 && '-' }}${{ matrix.goarm64 }}${{ matrix.goriscv64 && '-' }}${{ matrix.goriscv64 }}
@@ -171,6 +174,14 @@ jobs:
             goarch: amd64
             goamd64: v4
 
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      GOAMD64: ${{ matrix.goamd64 }}
+      GOARM: ${{ matrix.goarm }}
+      GOARM64: ${{ matrix.goarm64 }}
+      GORISCV64: ${{ matrix.goriscv64 }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -180,9 +191,6 @@ jobs:
         with:
           go-version: "stable"
           cache: true
-          cache-dependency-path: |
-            **/go.sum
-            **/go.mod
 
       - name: Download xray-pack binary
         uses: actions/download-artifact@v7
@@ -200,12 +208,6 @@ jobs:
         env:
           XRAY_PACK_VERSION: ${{ inputs.xray_version || 'main' }}
           REGION: ${{ inputs.region || 'china-mainland' }}
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          GOAMD64: ${{ matrix.goamd64 }}
-          GOARM: ${{ matrix.goarm }}
-          GOARM64: ${{ matrix.goarm64 }}
-          GORISCV64: ${{ matrix.goriscv64 }}
         run: |
           set -euo pipefail
 
@@ -228,7 +230,7 @@ jobs:
           VERSION_FLAG="--${{ env.CORE_TYPE }}-version"
           PACK_BINARY="./target/release/xray-pack"
 
-          # Build command with all environment variables
+          # Export all architecture-specific environment variables
           export GOEXPERIMENT
           [[ -n "$GOAMD64" ]] && export GOAMD64
           [[ -n "$GOARM" ]] && export GOARM
@@ -249,13 +251,6 @@ jobs:
       - name: Find and prepare artifacts
         shell: bash
         if: success()
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          GOAMD64: ${{ matrix.goamd64 }}
-          GOARM: ${{ matrix.goarm }}
-          GOARM64: ${{ matrix.goarm64 }}
-          GORISCV64: ${{ matrix.goriscv64 }}
         run: |
           set -euo pipefail
 
@@ -329,11 +324,12 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     if: inputs.create_release == true
     permissions:
       contents: write
-
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -346,27 +342,19 @@ jobs:
         with:
           path: artifacts
           pattern: "${{ env.CORE_TYPE }}-*"
+          merge-multiple: false
 
       - name: Display structure of downloaded files
         run: |
-          echo "::group::Artifact Structure"
-          ls -R artifacts
+          echo "::group::Artifact structure"
+          find artifacts -type f -name "*.zip" | head -20
           echo "::endgroup::"
 
       - name: Prepare release files
         run: |
           mkdir -p release-files
-          # Copy only zip files to release directory, excluding xray-pack binary
-          find artifacts -name "*.zip" -type f -exec cp {} release-files/ \;
-
-          if [ -z "$(ls -A release-files/)" ]; then
-            echo "::error::No zip files found in artifacts"
-            exit 1
-          fi
-
-          echo "::group::Files to be released"
-          ls -lh release-files/
-          echo "::endgroup::"
+          find artifacts -type f -name "*.zip" -exec cp {} release-files/ \;
+          echo "Prepared $(ls release-files/*.zip | wc -l) files for release"
 
       - name: Generate checksums
         run: |
@@ -387,8 +375,7 @@ jobs:
           fi
 
       - name: Determine release tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: determine_tag
         run: |
           # Check if user provided a custom release_tag
           if [ -n "${{ inputs.release_tag }}" ]; then
@@ -399,43 +386,45 @@ jobs:
             echo "Using auto-generated tag: $TAG_NAME"
           fi
 
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "Release tag: $TAG_NAME"
 
-      - name: Create or update tag
+      - name: Delete existing release if it exists
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.determine_tag.outputs.tag_name }}
+        run: |
+          echo "Checking if release exists for tag: $TAG_NAME"
+          if gh release view "$TAG_NAME" > /dev/null 2>&1; then
+            echo "Release exists, deleting..."
+            gh release delete "$TAG_NAME" --yes
+            echo "Release deleted successfully"
+          else
+            echo "Release does not exist, proceeding..."
+          fi
+
+      - name: Update or create tag
+        env:
+          TAG_NAME: ${{ steps.determine_tag.outputs.tag_name }}
         run: |
           # Get the current commit SHA
           CURRENT_SHA=$(git rev-parse HEAD)
           echo "Current commit: $CURRENT_SHA"
 
-          # Create or update the tag (use --force to update if it exists)
-          git tag -f "${{ env.TAG_NAME }}" "$CURRENT_SHA"
-          git push origin "${{ env.TAG_NAME }}" --force
+          # Delete the tag if it exists locally and remotely
+          git tag -d "$TAG_NAME" 2>/dev/null || true
+          git push origin --delete "refs/tags/$TAG_NAME" 2>/dev/null || true
 
-          echo "Tag ${{ env.TAG_NAME }} created/updated at commit $CURRENT_SHA"
+          # Create new tag
+          git tag "$TAG_NAME" "$CURRENT_SHA"
+          git push origin "$TAG_NAME"
 
-      - name: Delete existing release if it exists
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Checking if release exists for tag: ${{ env.TAG_NAME }}"
-          if gh release view "${{ env.TAG_NAME }}" > /dev/null 2>&1; then
-            echo "Release exists, deleting..."
-            gh release delete "${{ env.TAG_NAME }}" --yes --cleanup-tag
-            echo "Waiting for deletion to complete..."
-            sleep 10
-          else
-            echo "Release does not exist, proceeding..."
-          fi
+          echo "Tag $TAG_NAME created at commit $CURRENT_SHA"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.TAG_NAME }}
-          name: ${{ env.CORE_TYPE }}-core Bundle - ${{ env.TAG_NAME }} (Pre-release)
+          tag_name: ${{ steps.determine_tag.outputs.tag_name }}
+          name: ${{ env.CORE_TYPE }}-core Bundle - ${{ steps.determine_tag.outputs.tag_name }} (Pre-release)
           files: |
             release-files/*.zip
             release-files/SHA256SUMS
@@ -508,8 +497,6 @@ jobs:
             - 地区: ${{ inputs.region }}
             - GOEXPERIMENT: ${{ env.GOEXPERIMENT }}
             - 触发时间: ${{ steps.set_timestamp.outputs.timestamp }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   notify:
     name: Notify Completion
