@@ -25,7 +25,7 @@ sha2 = "=0.10.9"
 thiserror = "=2.0.18"
 tokio = { version = "=1.49.0", features = ["bytes", "fs", "full"] }
 which = "=8.0.0"
-zip = "=8.0.0"
+zip = "=8.1.0"
 
 [target.'cfg(not(target_os = "darwin"))'.dependencies]
 git2 = { version = "=0.20.4", features = ["vendored-libgit2", "vendored-openssl"] }
