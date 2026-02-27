@@ -83,7 +83,7 @@ CFLAGS="-O3 -march=native" CXXFLAGS="-O3 -march=native" RUSTFLAGS="-C target-cpu
 为 x86_64 CPU 和 Linux 系统启用所有性能特性（若 CPU 支持 AVX512 指令集）：
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" ./xray-pack.exe -s -v --goos linux --goarch amd64 xray
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="jsonv2,newinliner" ./xray-pack.exe -s -v --goos linux --goarch amd64 xray
 ```
 
 为主流 x86_64 CPU 和 Windows 系统启用指令集优化（CPU 只支持到 AVX2 指令集）：
@@ -109,11 +109,13 @@ CGO_ENABLED=0 ./xray-pack.exe -s -v --goos linux --goarch amd64 v2ray --v2ray-ve
 最终打包的 zip 文件命名为：
 
 对于 Xray：
+
 ```
 xray-{version}-{arch}-{system}.zip
 ```
 
 对于 V2Ray：
+
 ```
 v2ray-{version}-{arch}-{system}.zip
 ```
