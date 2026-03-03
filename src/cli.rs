@@ -16,11 +16,11 @@ Xray-core will be compiled and packaged as `Xray-{version}-{arch}-{system}.zip`.
 You can install the package with the official installation script from <https://github.com/XTLS/Xray-install/raw/main/install-release.sh>.
 
 There are several options to maximize the performance of Xray-core:
-+ `GOAMD64` `GO386` `GOARM` environment variables: Specify the microarchitecture of the CPU.
++ `GOAMD64`, `GO386`, `GOARM`, `GOARM64`, etc. environment variables: Specify the microarchitecture of the CPU.
 + `GOEXPERIMENT` environment variable: Specify the experimental features of the Go compiler.
-    `jsonv2`, `newinliner`, `greenteagc`, `regabiargs`, `regabiwrappers` might improve performance.
+    `jsonv2`, `newinliner` might improve performance.
 + `CGO_ENABLED` environment variable: Specify whether to enable CGO. `CGO_ENABLED=0` is recommended for better performance. \
-Note that this programme will override `go env CGO_ENABLED` and set `CGO_ENABLED=0` unless you specify it manually.
+    Note that this programme will override `go env CGO_ENABLED` and set `CGO_ENABLED=0` unless you specify it manually.
 + `--gcflags`: Specify the `-gcflags` for the Go compiler. Default to `all=-l=4`, maximizing inline optimization.\
 "
 )]

@@ -83,7 +83,7 @@ Options:
 Enable all features for x86_64 CPU and Linux system (Only use GOAMD=v4 if CPU supports AVX512 instructions):
 
 ```bash
-CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="greenteagc,jsonv2,newinliner" -s -v --goos linux --goarch amd64 ./xray-pack.exe xray
+CGO_ENABLED=0 GOAMD64="v4" GOEXPERIMENT="jsonv2,newinliner" -s -v --goos linux --goarch amd64 ./xray-pack.exe xray
 ```
 
 Optimize for most x86_64 CPU (with AVX2 support) and Windows system:
@@ -95,13 +95,13 @@ CGO_ENABLED=0 GOAMD64="v3" ./xray-pack.exe -s -v --goos windows --goarch amd64 x
 Build for ARM64 MacOS, disabling inlining:
 
 ```bash
-CGO_ENABLED=0 ./xray-pack.exe -s -v --goos darwin --goarch arm64 xray --gcflags "all:-l"
+CGO_ENABLED=0 ./xray-pack.exe -s -v --goos darwin --goarch arm64 xray --gcflags "all:-l" xray
 ```
 
 Build V2Ray with custom version:
 
 ```bash
-CGO_ENABLED=0 ./xray-pack.exe -s -v --goos linux --goarch amd64 v2ray --v2ray-version v5.44.1
+CGO_ENABLED=0 ./xray-pack.exe -s -v --goos linux --goarch amd64 v2ray --v2ray-version v5.44.1 v2ray
 ```
 
 ### Output
@@ -109,11 +109,13 @@ CGO_ENABLED=0 ./xray-pack.exe -s -v --goos linux --goarch amd64 v2ray --v2ray-ve
 The packaged zip will be named:
 
 For Xray:
+
 ```
 xray-{version}-{arch}-{system}.zip
 ```
 
 For V2Ray:
+
 ```
 v2ray-{version}-{arch}-{system}.zip
 ```
