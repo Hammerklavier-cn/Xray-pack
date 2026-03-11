@@ -1,0 +1,565 @@
+name: Build Xray/v2ray @v1
+
+on:
+  workflow_dispatch:
+    inputs:
+      xray_version:
+        description: "Xray-core/v2ray-core version (tag or branch, e.g., v1.8.0 or main)"
+        required: false
+        default: "main"
+        type: string
+      core_type:
+        description: "Core type to build"
+        required: false
+        default: "xray"
+        type: choice
+        options:
+          - xray
+          - v2ray
+      region:
+        description: "Region for geo files"
+        required: false
+        default: "china-mainland"
+        type: choice
+        options:
+          - china-mainland
+          - russia
+          - iran
+      create_release:
+        description: "Create a GitHub release with the artifacts"
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: "Release tag (optional, auto-generated if empty: <CORE_TYPE>-latest-<REGION>)"
+        required: false
+        default: ""
+        type: string
+  push:
+    branches:
+      - gh-workflow
+      - gitcode-workflow
+
+# Cancel in-progress runs for the same branch/workflow
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CGO_ENABLED: 0
+  CORE_TYPE: ${{ inputs.core_type || 'xray' }}
+  GOEXPERIMENT: "jsonv2,newinliner"
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    name: Prepare xray-pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Build xray-pack
+        run: |
+          echo "::group::Building xray-pack"
+          cargo build --release --verbose
+          echo "::endgroup::"
+
+          echo "::group::Verify binary"
+          ls -lh target/release/xray-pack
+          file target/release/xray-pack
+          echo "::endgroup::"
+
+      - name: Upload xray-pack binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: xray-pack-binary
+          path: target/release/xray-pack
+          retention-days: 1
+          if-no-files-found: error
+          compression-level: 9
+
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goamd64 && '-' }}${{ matrix.goamd64 }}${{ matrix.goarm && '-v' }}${{ matrix.goarm }}${{ matrix.goarm64 && '-' }}${{ matrix.goarm64 }}${{ matrix.goriscv64 && '-' }}${{ matrix.goriscv64 }}
+    runs-on: ubuntu-latest
+    needs: prepare
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          # Linux AMD64 with GOAMD64 levels
+          - goos: linux
+            goarch: amd64
+            goamd64: v2
+          - goos: linux
+            goarch: amd64
+            goamd64: v3
+          - goos: linux
+            goarch: amd64
+            goamd64: v4
+
+          # Linux ARM64
+          - goos: linux
+            goarch: arm64
+            goarm64: v8.0
+          - goos: linux
+            goarch: arm64
+            goarm64: v8.2
+          - goos: linux
+            goarch: arm64
+            goarm64: v9.0
+
+          # Linux ARM with GOARM versions
+          - goos: linux
+            goarch: arm
+            goarm: 5
+          - goos: linux
+            goarch: arm
+            goarm: 6
+          - goos: linux
+            goarch: arm
+            goarm: 7
+
+          # Linux RISC-V64
+          - goos: linux
+            goarch: riscv64
+            goriscv64: rva20u64
+          - goos: linux
+            goarch: riscv64
+            goriscv64: rva22u64
+          - goos: linux
+            goarch: riscv64
+            goriscv64: rva23u64
+
+          # macOS AMD64 with GOAMD64 levels
+          - goos: darwin
+            goarch: amd64
+            goamd64: v2
+          - goos: darwin
+            goarch: amd64
+            goamd64: v3
+
+          # macOS ARM64
+          - goos: darwin
+            goarch: arm64
+            goarm64: v8.0
+          - goos: darwin
+            goarch: arm64
+            goarm64: v8.5
+
+          # Windows AMD64 with GOAMD64 levels
+          - goos: windows
+            goarch: amd64
+            goamd64: v2
+          - goos: windows
+            goarch: amd64
+            goamd64: v3
+          - goos: windows
+            goarch: amd64
+            goamd64: v4
+
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      GOAMD64: ${{ matrix.goamd64 }}
+      GOARM: ${{ matrix.goarm }}
+      GOARM64: ${{ matrix.goarm64 }}
+      GORISCV64: ${{ matrix.goriscv64 }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          cache: true
+
+      - name: Download xray-pack binary
+        uses: actions/download-artifact@v7
+        with:
+          name: xray-pack-binary
+          path: target/release
+
+      - name: Make xray-pack executable
+        run: |
+          chmod +x target/release/xray-pack
+          ./target/release/xray-pack --version || echo "Version check skipped"
+
+      - name: Build ${{ env.CORE_TYPE }}-core
+        shell: bash
+        env:
+          XRAY_PACK_VERSION: ${{ inputs.xray_version || 'main' }}
+          REGION: ${{ inputs.region || 'china-mainland' }}
+        run: |
+          set -euo pipefail
+
+          echo "::group::Build Configuration"
+          echo "Building ${{ env.CORE_TYPE }}-core version: $XRAY_PACK_VERSION"
+          echo "Platform: $GOOS-$GOARCH"
+          [[ -n "$GOAMD64" ]] && echo "GOAMD64: $GOAMD64"
+          [[ -n "$GOARM" ]] && echo "GOARM: $GOARM"
+          [[ -n "$GOARM64" ]] && echo "GOARM64: $GOARM64"
+          [[ -n "$GORISCV64" ]] && echo "GORISCV64: $GORISCV64"
+          echo "Region: $REGION"
+          echo "GOEXPERIMENT: $GOEXPERIMENT"
+          echo "::endgroup::"
+
+          echo "::group::Go Environment"
+          go version
+          go env | grep -E "GOOS|GOARCH|GOROOT|GOPATH|GOCACHE"
+          echo "::endgroup::"
+
+          VERSION_FLAG="--${{ env.CORE_TYPE }}-version"
+          PACK_BINARY="./target/release/xray-pack"
+
+          # Export all architecture-specific environment variables
+          export GOEXPERIMENT
+          [[ -n "$GOAMD64" ]] && export GOAMD64
+          [[ -n "$GOARM" ]] && export GOARM
+          [[ -n "$GOARM64" ]] && export GOARM64
+          [[ -n "$GORISCV64" ]] && export GORISCV64
+
+          echo "::group::Building ${{ env.CORE_TYPE }}-core"
+          "$PACK_BINARY" \
+            -s \
+            -v \
+            --goos "$GOOS" \
+            --goarch "$GOARCH" \
+            --region "$REGION" \
+            ${{ env.CORE_TYPE }} \
+            "$VERSION_FLAG"="$XRAY_PACK_VERSION"
+          echo "::endgroup::"
+
+      - name: Find and prepare artifacts
+        shell: bash
+        if: success()
+        run: |
+          set -euo pipefail
+
+          if [[ "$GOOS" == "windows" ]]; then
+            BINARY_NAME="${{ env.CORE_TYPE }}.exe"
+          else
+            BINARY_NAME="${{ env.CORE_TYPE }}"
+          fi
+
+          # Build artifact name suffix
+          SUFFIX="${GOARCH}-${GOOS}"
+          if [[ -n "$GOAMD64" ]]; then
+            SUFFIX="amd64-${GOAMD64}-${GOOS}"
+          elif [[ -n "$GOARM" ]]; then
+            SUFFIX="arm-v${GOARM}-${GOOS}"
+          elif [[ -n "$GOARM64" ]]; then
+            SUFFIX="arm64-${GOARM64//,/-}-${GOOS}"
+          elif [[ -n "$GORISCV64" ]]; then
+            SUFFIX="riscv64-${GORISCV64}-${GOOS}"
+          fi
+
+          # Build expected artifact name
+          VERSION="${{ inputs.xray_version || 'main' }}"
+          EXPECTED_ARTIFACT_NAME="${{ env.CORE_TYPE }}-${VERSION}-${SUFFIX}.zip"
+
+          echo "Expected artifact name: $EXPECTED_ARTIFACT_NAME"
+
+          # Find and rename the artifact
+          FOUND=false
+          for file in dist/*.zip; do
+            if [[ -f "$file" ]]; then
+              ARTIFACT_NAME=$(basename "$file")
+              echo "Found artifact: $ARTIFACT_NAME"
+
+              # Rename the artifact to include the correct suffix
+              if [[ "$ARTIFACT_NAME" != "$EXPECTED_ARTIFACT_NAME" ]]; then
+                NEW_PATH="dist/$EXPECTED_ARTIFACT_NAME"
+                echo "Renaming to: $EXPECTED_ARTIFACT_NAME"
+                mv "$file" "$NEW_PATH"
+                ARTIFACT_NAME="$EXPECTED_ARTIFACT_NAME"
+                file="$NEW_PATH"
+              fi
+
+              echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
+              echo "ARTIFACT_PATH=$file" >> $GITHUB_ENV
+              FOUND=true
+              break
+            fi
+          done
+
+          if [[ "$FOUND" == "false" ]]; then
+            echo "::error::No artifact found in dist/"
+            ls -la dist/ || echo "dist/ directory not found"
+            exit 1
+          fi
+
+          echo "Final artifact: $ARTIFACT_NAME at $file"
+          ls -lh "$file"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        if: success()
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACT_PATH }}
+          retention-days: 30
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: inputs.create_release == true
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          pattern: "${{ env.CORE_TYPE }}-*"
+          merge-multiple: false
+
+      - name: Display structure of downloaded files
+        run: |
+          echo "::group::Artifact structure"
+          find artifacts -type f -name "*.zip" | head -20
+          echo "::endgroup::"
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          find artifacts -type f -name "*.zip" -exec cp {} release-files/ \;
+          echo "Prepared $(ls release-files/*.zip | wc -l) files for release"
+
+      - name: Generate checksums
+        run: |
+          cd release-files
+          sha256sum *.zip > SHA256SUMS
+          echo "::group::SHA256 Checksums"
+          cat SHA256SUMS
+          echo "::endgroup::"
+
+      - name: Set timestamp
+        id: set_timestamp
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.head_commit.timestamp }}" ]; then
+            echo "timestamp=${{ github.event.head_commit.timestamp }}" >> $GITHUB_OUTPUT
+          else
+            echo "timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine release tag
+        id: determine_tag
+        run: |
+          # Check if user provided a custom release_tag
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG_NAME="${{ inputs.release_tag }}"
+            echo "Using user-provided tag: $TAG_NAME"
+          else
+            TAG_NAME="${{ env.CORE_TYPE }}-latest-${{ inputs.region }}"
+            echo "Using auto-generated tag: $TAG_NAME"
+          fi
+
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Release tag: $TAG_NAME"
+
+      - name: Delete existing release if it exists
+        env:
+          TAG_NAME: ${{ steps.determine_tag.outputs.tag_name }}
+        run: |
+          echo "Checking if release exists for tag: $TAG_NAME"
+          if gh release view "$TAG_NAME" > /dev/null 2>&1; then
+            echo "Release exists, deleting..."
+            gh release delete "$TAG_NAME" --yes
+            echo "Release deleted successfully"
+          else
+            echo "Release does not exist, proceeding..."
+          fi
+
+      - name: Update or create tag
+        env:
+          TAG_NAME: ${{ steps.determine_tag.outputs.tag_name }}
+        run: |
+          # Get the current commit SHA
+          CURRENT_SHA=$(git rev-parse HEAD)
+          echo "Current commit: $CURRENT_SHA"
+
+          # Delete the tag if it exists locally and remotely
+          git tag -d "$TAG_NAME" 2>/dev/null || true
+          git push origin --delete "refs/tags/$TAG_NAME" 2>/dev/null || true
+
+          # Create new tag
+          git tag "$TAG_NAME" "$CURRENT_SHA"
+          git push origin "$TAG_NAME"
+
+          echo "Tag $TAG_NAME created at commit $CURRENT_SHA"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.determine_tag.outputs.tag_name }}
+          name: ${{ env.CORE_TYPE }}-core Bundle - ${{ steps.determine_tag.outputs.tag_name }} (Pre-release)
+          files: |
+            release-files/*.zip
+            release-files/SHA256SUMS
+          generate_release_notes: true
+          draft: false
+          prerelease: true
+          fail_on_unmatched_files: true
+          make_latest: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            ## 🎉 ${{ env.CORE_TYPE }}-core ${{ inputs.xray_version }} Bundle
+
+            这是使用 xray-pack 打包的 ${{ env.CORE_TYPE }}-core 预编译二进制文件，**不是 xray-pack 程序本身的发布**。
+            This is a pre-packaged ${{ env.CORE_TYPE }}-core binary bundle using xray-pack, **not the xray-pack program itself**.
+
+            ### 📦 下载 / Downloads
+
+            这是手动触发的构建版本。
+            This is a manually triggered build.
+
+            **版本 / Version**: ${{ inputs.xray_version }}
+            **地区 / Region**: ${{ inputs.region }}
+            **GOEXPERIMENT**: ${{ env.GOEXPERIMENT }}
+
+            #### 📋 文件校验 / File Verification
+            下载后请使用 `SHA256SUMS` 文件验证文件完整性：
+            ```bash
+            sha256sum -c SHA256SUMS
+            ```
+
+            | OS | Architecture | CPU Features | Download |
+            |---|---|---|---|
+            | Linux | amd64-v2 | SSE4.2, POPCNT | ${{ env.CORE_TYPE }}-*-amd64-v2-linux.zip |
+            | Linux | amd64-v3 | AVX, AVX2 | ${{ env.CORE_TYPE }}-*-amd64-v3-linux.zip |
+            | Linux | amd64-v4 | AVX512 | ${{ env.CORE_TYPE }}-*-amd64-v4-linux.zip |
+            | Linux | arm64-v8.0 | ARMv8.0-A | ${{ env.CORE_TYPE }}-*-arm64-v8.0-linux.zip |
+            | Linux | arm64-v8.2 | ARMv8.2-A, LSE | ${{ env.CORE_TYPE }}-*-arm64-v8.2-linux.zip |
+            | Linux | arm64-v9.0 | ARMv9.0-A, SVE2 | ${{ env.CORE_TYPE }}-*-arm64-v9.0-linux.zip |
+            | Linux | arm-v5 | ARMv5 | ${{ env.CORE_TYPE }}-*-arm-v5-linux.zip |
+            | Linux | arm-v6 | ARMv6, VFPv1 | ${{ env.CORE_TYPE }}-*-arm-v6-linux.zip |
+            | Linux | arm-v7 | ARMv7, VFPv3 | ${{ env.CORE_TYPE }}-*-arm-v7-linux.zip |
+            | Linux | riscv64-rva20u64 | RVA20U64 (RV64GC) | ${{ env.CORE_TYPE }}-*-riscv64-rva20u64-linux.zip |
+            | Linux | riscv64-rva22u64 | RVA22U64 | ${{ env.CORE_TYPE }}-*-riscv64-rva22u64-linux.zip |
+            | Linux | riscv64-rva23u64 | RVA23U64 | ${{ env.CORE_TYPE }}-*-riscv64-rva23u64-linux.zip |
+            | macOS (Intel) | amd64-v2 | SSE4.2, POPCNT | ${{ env.CORE_TYPE }}-*-amd64-v2-darwin.zip |
+            | macOS (Intel) | amd64-v3 | AVX, AVX2 | ${{ env.CORE_TYPE }}-*-amd64-v3-darwin.zip |
+            | macOS (Apple Silicon) | arm64-v8.0 | ARMv8.0-A | ${{ env.CORE_TYPE }}-*-arm64-v8.0-darwin.zip |
+            | macOS (Apple Silicon) | arm64-v8.5 | ARMv8.5-A | ${{ env.CORE_TYPE }}-*-arm64-v8.5-darwin.zip |
+            | Windows | amd64-v2 | SSE4.2, POPCNT | ${{ env.CORE_TYPE }}-*-amd64-v2-windows.zip |
+            | Windows | amd64-v3 | AVX, AVX2 | ${{ env.CORE_TYPE }}-*-amd64-v3-windows.zip |
+            | Windows | amd64-v4 | AVX512 | ${{ env.CORE_TYPE }}-*-amd64-v4-windows.zip |
+
+            ### 📝 包含内容 / Contents
+
+            本发布包使用 [xray-pack](https://github.com/${{ github.repository }}) 工具打包。
+            This release is bundled using [xray-pack](https://github.com/${{ github.repository }}) tool.
+
+            - ${{ env.CORE_TYPE }}-core 二进制文件 / binary
+            - geoip.dat 和 geosite.dat (地区: ${{ inputs.region }})
+            - README.md 和 LICENSE
+            - (Windows 和 Xray) wintun.dll 和 LICENSE-wintun.txt
+
+            💡 如需获取 xray-pack 程序本身，请前往 [xray-pack Releases](https://github.com/${{ github.repository }}/releases)
+            💡 To get the xray-pack program itself, please visit [xray-pack Releases](https://github.com/${{ github.repository }}/releases)
+
+            ### ⚙️ 构建参数 / Build Parameters
+
+            - Core 类型: ${{ env.CORE_TYPE }}
+            - 版本: ${{ inputs.xray_version }}
+            - 地区: ${{ inputs.region }}
+            - GOEXPERIMENT: ${{ env.GOEXPERIMENT }}
+            - 触发时间: ${{ steps.set_timestamp.outputs.timestamp }}
+
+  notify:
+    name: Notify Completion
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check build status
+        id: check_status
+        run: |
+          BUILD_STATUS="${{ needs.build.result }}"
+          RELEASE_STATUS="${{ needs.release.result }}"
+
+          echo "BUILD_STATUS=$BUILD_STATUS" >> $GITHUB_ENV
+          echo "RELEASE_STATUS=$RELEASE_STATUS" >> $GITHUB_ENV
+
+          if [[ "$BUILD_STATUS" == "success" ]]; then
+            echo "BUILD_EMOJI=✅" >> $GITHUB_ENV
+          else
+            echo "BUILD_EMOJI=❌" >> $GITHUB_ENV
+          fi
+
+          if [[ "$RELEASE_STATUS" == "success" ]]; then
+            echo "RELEASE_EMOJI=✅" >> $GITHUB_ENV
+          elif [[ "$RELEASE_STATUS" == "skipped" ]]; then
+            echo "RELEASE_EMOJI=⏭️" >> $GITHUB_ENV
+          else
+            echo "RELEASE_EMOJI=❌" >> $GITHUB_ENV
+          fi
+
+          # Set timestamp - use head_commit timestamp for push events, or current time for workflow_dispatch
+          if [ -n "${{ github.event.head_commit.timestamp }}" ]; then
+            echo "TIMESTAMP=${{ github.event.head_commit.timestamp }}" >> $GITHUB_ENV
+          else
+            echo "TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+          fi
+
+      - name: Build Summary
+        run: |
+          echo "## 🎉 构建完成 / Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 构建状态 / Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **构建 / Build**: ${{ env.BUILD_EMOJI }} \`${{ env.BUILD_STATUS }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **发布 / Release**: ${{ env.RELEASE_EMOJI }} \`${{ env.RELEASE_STATUS }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 构建信息 / Build Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Core 类型**: \`${{ env.CORE_TYPE }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **版本**: \`${{ inputs.xray_version || 'main' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **地区**: \`${{ inputs.region || 'china-mainland' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **GOEXPERIMENT**: \`${{ env.GOEXPERIMENT }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **触发时间**: \`${{ env.TIMESTAMP }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 CPU 优化说明 / CPU Optimization Notes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**AMD64 (x86_64) 架构**:" >> $GITHUB_STEP_SUMMARY
+          echo "- **v2**: 适用于支持 SSE4.2 和 POPCNT 指令的 CPU（2010年及以后的 Intel/AMD CPU）" >> $GITHUB_STEP_SUMMARY
+          echo "- **v3**: 适用于支持 AVX 和 AVX2 指令的 CPU（2015年及以后的 Intel Haswell，AMD Ryzen）" >> $GITHUB_STEP_SUMMARY
+          echo "- **v4**: 适用于支持 AVX512 指令的 CPU（2017年及以后的 Intel Skylake-X，部分 AMD EPYC）" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**ARM (32位) 架构**:" >> $GITHUB_STEP_SUMMARY
+          echo "- **v5**: 适用于 ARMv5 处理器（软浮点）" >> $GITHUB_STEP_SUMMARY
+          echo "- **v6**: 适用于 ARMv6 处理器（VFPv1 硬件浮点）" >> $GITHUB_STEP_SUMMARY
+          echo "- **v7**: 适用于 ARMv7 处理器（VFPv3，常见于大多数 ARM 设备）" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [查看运行详情 / View Run Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
