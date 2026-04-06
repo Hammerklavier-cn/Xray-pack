@@ -23,7 +23,7 @@ openssl-sys = "=0.9.112"
 reqwest = { version = "=0.13.2", features = ["stream", "socks"] }
 sha2 = "=0.11.0"
 thiserror = "=2.0.18"
-tokio = { version = "=1.50.0", features = ["bytes", "fs", "full"] }
+tokio = { version = "=1.51.0", features = ["bytes", "fs", "full"] }
 which = "=8.0.2"
 zip = "=8.5.0"
 
