@@ -1,6 +1,6 @@
 [package]
 name = "xray-pack"
-version = "0.4.1-alpha.1"
+version = "0.4.1"
 edition = "2024"
 description = "Script to build and package Xray-core."
 
@@ -28,7 +28,10 @@ which = "=8.0.2"
 zip = "=8.5.0"
 
 [target.'cfg(not(target_os = "darwin"))'.dependencies]
-git2 = { version = "=0.20.4", features = ["vendored-libgit2", "vendored-openssl"] }
+git2 = { version = "=0.20.4", features = [
+    "vendored-libgit2",
+    "vendored-openssl",
+] }
 openssl-sys = { version = "=0.9.112", features = ["vendored"] }
 
 [target.'cfg(target_os = "darwin")'.dependencies]
