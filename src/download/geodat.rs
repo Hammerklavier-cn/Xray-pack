@@ -65,7 +65,14 @@ fn verify_sha256(file_path: &std::path::Path, expected_checksum: &str) -> PackRe
     let calculated_hash = hasher.finalize();
 
     // Convert the hash to hex string
-    let calculated_checksum = format!("{:x}", calculated_hash);
+    let calculated_checksum = calculated_hash
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
+    log::debug!(
+        "Calculated {} checksum: {calculated_checksum}",
+        file_path.display()
+    );
 
     // Compare the calculated checksum with the expected one
     if calculated_checksum != expected_checksum {
