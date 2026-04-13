@@ -32,7 +32,7 @@ git2 = { version = "=0.20.4", features = [
     "vendored-libgit2",
     "vendored-openssl",
 ] }
-openssl-sys = { version = "=0.9.112", features = ["vendored"] }
+openssl-sys = { version = "=0.9.113", features = ["vendored"] }
 
 [target.'cfg(target_os = "darwin")'.dependencies]
 git2 = { version = "=0.20.4", features = ["vendored-libgit2"] }
