@@ -421,7 +421,7 @@ jobs:
           echo "Tag $TAG_NAME created at commit $CURRENT_SHA"
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.determine_tag.outputs.tag_name }}
           name: ${{ env.CORE_TYPE }}-core Bundle - ${{ steps.determine_tag.outputs.tag_name }} (Pre-release)
