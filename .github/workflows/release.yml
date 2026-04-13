@@ -78,12 +78,13 @@ jobs:
             arch_name: amd64
             libc: msvc
             use_cross: false
-          - os: ubuntu-latest
-            target: x86_64-pc-windows-gnu
-            os_name: windows
-            arch_name: amd64
-            libc: gnu
-            use_cross: true
+          # # openssl-sys build always fails. Try it later.
+          # - os: ubuntu-latest
+          #   target: x86_64-pc-windows-gnu
+          #   os_name: windows
+          #   arch_name: amd64
+          #   libc: gnu
+          #   use_cross: true
 
     steps:
       - name: Checkout repository
