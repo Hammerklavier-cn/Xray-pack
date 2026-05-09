@@ -19,7 +19,7 @@ env_logger = "=0.11.10"
 futures = "=0.3.32"
 git2 = { version = "=0.20.4", features = ["vendored-libgit2"] }
 log = "=0.4.29"
-openssl-sys = "=0.9.113"
+openssl-sys = "=0.9.115"
 reqwest = { version = "=0.13.3", features = ["stream", "socks"] }
 sha2 = "=0.11.0"
 thiserror = "=2.0.18"
@@ -32,8 +32,8 @@ git2 = { version = "=0.20.4", features = [
     "vendored-libgit2",
     "vendored-openssl",
 ] }
-openssl-sys = { version = "=0.9.113", features = ["vendored"] }
+openssl-sys = { version = "=0.9.115", features = ["vendored"] }
 
 [target.'cfg(target_os = "darwin")'.dependencies]
 git2 = { version = "=0.20.4", features = ["vendored-libgit2"] }
-openssl-sys = "=0.9.113"
+openssl-sys = "=0.9.115"
