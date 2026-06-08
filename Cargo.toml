@@ -18,7 +18,7 @@ clap = { version = "=4.6.1", features = ["derive"] }
 env_logger = "=0.11.10"
 futures = "=0.3.32"
 git2 = { version = "=0.20.4", features = ["vendored-libgit2"] }
-log = "=0.4.30"
+log = "=0.4.32"
 openssl-sys = "=0.9.115"
 reqwest = { version = "=0.13.4", features = ["stream", "socks"] }
 sha2 = "=0.11.0"
