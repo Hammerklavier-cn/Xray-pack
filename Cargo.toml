@@ -29,9 +29,13 @@ zip = "=8.6.0"
 git2 = { version = "=0.21.0", features = [
     "vendored-libgit2",
     "vendored-openssl",
+    "https",
 ] }
 openssl-sys = { version = "=0.9.116", features = ["vendored"] }
 
 [target.'cfg(target_os = "darwin")'.dependencies]
-git2 = { version = "=0.21.0", features = ["vendored-libgit2"] }
+git2 = { version = "=0.21.0", features = [
+    "vendored-libgit2",
+    "https",
+] }
 openssl-sys = "=0.9.116"
