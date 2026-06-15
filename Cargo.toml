@@ -38,4 +38,4 @@ git2 = { version = "=0.21.0", features = [
     "vendored-libgit2",
     "https",
 ] }
-openssl-sys = "=0.9.116"
+openssl-sys = { version = "=0.9.117" }
