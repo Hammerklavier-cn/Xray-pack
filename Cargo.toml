@@ -21,7 +21,7 @@ log = "=0.4.33"
 reqwest = { version = "=0.13.4", features = ["stream", "socks"] }
 sha2 = "=0.11.0"
 thiserror = "=2.0.19"
-tokio = { version = "=1.52.3", features = ["bytes", "fs", "full"] }
+tokio = { version = "=1.53.0", features = ["bytes", "fs", "full"] }
 which = "=8.0.5"
 zip = "=8.6.0"
 
