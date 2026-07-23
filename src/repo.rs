@@ -48,7 +48,7 @@ pub fn setup_repository() -> PackResult<String> {
         log::debug!(
             "Open {} repository at {}",
             args.target,
-            &args.path_options.source_path.display()
+            args.path_options.source_path.display()
         );
         Repository::open(&args.path_options.source_path)?
     };
