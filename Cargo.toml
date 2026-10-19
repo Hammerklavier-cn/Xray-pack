@@ -23,7 +23,7 @@ sha2 = "=0.11.0"
 thiserror = "=2.0.21"
 tokio = { version = "=1.53.1", features = ["bytes", "fs", "full"] }
 which = "=8.0.6"
-zip = "=8.6.0"
+zip = "=9.0.3"
 
 [target.'cfg(not(target_os = "darwin"))'.dependencies]
 git2 = { version = "=0.21.0", features = [
